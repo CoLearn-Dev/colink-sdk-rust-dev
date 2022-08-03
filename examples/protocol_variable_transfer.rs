@@ -11,7 +11,7 @@ impl ProtocolEntry for Initiator {
         participants: Vec<Participant>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         println!("initiator");
-        cl.set_variable("output", "hello".as_bytes(), &[participants[0].clone()])
+        cl.set_variable("output", &param, &[participants[1].clone()])
             .await?;
         Ok(())
     }

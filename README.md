@@ -49,3 +49,6 @@ cargo run --example protocol_greetings -- --addr <address> --jwt <user_jwt>
 ```
 cargo run --example protocol_greetings -- --addr <address> --jwt <user_jwt> --ca <ca_cert> --cert <client_cert> --key <client_key>
 ```
+```
+cargo run --example protocol_variable_transfer -- --addr <address> --jwt <user_jwt>
+```
