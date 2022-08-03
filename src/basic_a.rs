@@ -25,11 +25,11 @@ pub struct AuthContent {
 
 #[derive(Clone)]
 pub struct CoLink {
-    core_addr: String,
-    jwt: String,
-    task_id: String,
-    ca_certificate: Option<Certificate>,
-    identity: Option<Identity>,
+    pub(crate) core_addr: String,
+    pub(crate) jwt: String,
+    pub(crate) task_id: String,
+    pub(crate) ca_certificate: Option<Certificate>,
+    pub(crate) identity: Option<Identity>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -245,26 +245,6 @@ impl CoLink {
         Ok(response.get_ref().entries.clone())
     }
 
-    #[cfg(feature = "extension")]
-    pub async fn read_or_wait(&self, key: &str) -> Result<Vec<u8>, Error> {
-        match self.read_entry(key).await {
-            Ok(res) => Ok(res),
-            Err(e) => {
-                let queue_name = self.subscribe(key, None).await?;
-                let mut subscriber = self.new_subscriber(&queue_name).await?;
-                let data = subscriber.get_next().await?;
-                debug!("Received [{}]", String::from_utf8_lossy(&data));
-                self.unsubscribe(&queue_name).await?;
-                let message: SubscriptionMessage = prost::Message::decode(&*data).unwrap();
-                if message.change_type != "delete" {
-                    Ok((*message.payload).to_vec())
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-
     pub async fn import_guest_jwt(&self, jwt: &str) -> Result<(), Error> {
         let jwt_decoded = decode_jwt_without_validation(jwt)?;
         self.update_entry(
@@ -427,123 +407,6 @@ impl CoLink {
         let subscriber = CoLinkSubscriber::new(&mq_uri, queue_name).await?;
         Ok(subscriber)
     }
-
-    #[cfg(feature = "lock")]
-    /// The default retry time cap is 100 ms. If you want to specify a retry time cap, use lock_with_retry_time instead.
-    pub async fn lock(&self, key: &str) -> Result<CoLinkLockToken, Error> {
-        self.lock_with_retry_time(key, 100).await
-    }
-
-    #[cfg(feature = "lock")]
-    pub async fn lock_with_retry_time(
-        &self,
-        key: &str,
-        retry_time_cap_in_ms: u64,
-    ) -> Result<CoLinkLockToken, Error> {
-        use rand::Rng;
-        let mut sleep_time_cap = 1;
-        let rnd_num = rand::thread_rng().gen::<i32>();
-        loop {
-            if self
-                .create_entry(&format!("_lock:{}", key), &rnd_num.to_le_bytes())
-                .await
-                .is_ok()
-            {
-                break;
-            }
-            let st = rand::thread_rng().gen_range(0..sleep_time_cap);
-            tokio::time::sleep(tokio::time::Duration::from_millis(st)).await;
-            sleep_time_cap *= 2;
-            if sleep_time_cap > retry_time_cap_in_ms {
-                sleep_time_cap = retry_time_cap_in_ms;
-            }
-        }
-        Ok(CoLinkLockToken {
-            key: key.to_string(),
-            rnd_num,
-        })
-    }
-
-    #[cfg(feature = "lock")]
-    pub async fn unlock(&self, lock_token: CoLinkLockToken) -> Result<(), Error> {
-        let rnd_num_in_storage = self
-            .read_entry(&format!("_lock:{}", lock_token.key))
-            .await?;
-        let rnd_num_in_storage =
-            i32::from_le_bytes(<[u8; 4]>::try_from(rnd_num_in_storage).unwrap());
-        if rnd_num_in_storage == lock_token.rnd_num {
-            self.delete_entry(&format!("_lock:{}", lock_token.key))
-                .await?;
-        } else {
-            Err("Invalid token.")?
-        }
-        Ok(())
-    }
-
-    #[cfg(feature = "variable_transfer")]
-    pub async fn set_variable(
-        &self,
-        key: &str,
-        payload: &[u8],
-        receivers: &[Participant],
-    ) -> Result<(), Error> {
-        use prost::Message;
-        use remote_storage_proto::*;
-        mod remote_storage_proto {
-            include!(concat!(env!("OUT_DIR"), "/remote_storage.rs"));
-        }
-        if self.task_id.is_empty() {
-            Err("task_id not found".to_string())?;
-        }
-        let mut new_participants = vec![Participant {
-            user_id: self.get_user_id()?,
-            role: "requester".to_string(),
-        }];
-        for p in receivers {
-            if p.user_id == self.get_user_id()? {
-                self.create_entry(
-                    &format!(
-                        "_remote_storage:private:{}:_variable_transfer:{}:{}",
-                        p.user_id,
-                        self.get_task_id()?,
-                        key
-                    ),
-                    payload,
-                )
-                .await?;
-            } else {
-                new_participants.push(Participant {
-                    user_id: p.user_id.clone(),
-                    role: "provider".to_string(),
-                });
-            }
-        }
-        let params = CreateParams {
-            remote_key_name: format!("_variable_transfer:{}:{}", self.get_task_id()?, key),
-            payload: payload.to_vec(),
-            ..Default::default()
-        };
-        let mut payload = vec![];
-        params.encode(&mut payload).unwrap();
-        self.run_task("remote_storage.create", &payload, &new_participants, false)
-            .await?;
-        Ok(())
-    }
-
-    #[cfg(feature = "variable_transfer")]
-    pub async fn get_variable(&self, key: &str, sender: &Participant) -> Result<Vec<u8>, Error> {
-        if self.task_id.is_empty() {
-            Err("task_id not found".to_string())?;
-        }
-        let key = format!(
-            "_remote_storage:private:{}:_variable_transfer:{}:{}",
-            sender.user_id,
-            self.get_task_id()?,
-            key
-        );
-        let res = self.read_or_wait(&key).await?;
-        Ok(res)
-    }
 }
 
 pub struct CoLinkSubscriber {
@@ -573,12 +436,6 @@ impl CoLinkSubscriber {
         delivery.ack(BasicAckOptions::default()).await?;
         Ok(delivery.data)
     }
-}
-
-#[cfg(feature = "lock")]
-pub struct CoLinkLockToken {
-    key: String,
-    rnd_num: i32,
 }
 
 pub fn generate_request<T>(jwt: &str, data: T) -> tonic::Request<T> {

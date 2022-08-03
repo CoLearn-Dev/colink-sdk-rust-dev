@@ -1,6 +1,6 @@
 use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
-#[structopt(name = "CoLink-SDK-P", about = "CoLink-SDK-P")]
+#[structopt(name = "CoLink-SDK", about = "CoLink-SDK")]
 
 pub struct CommandLineArgs {
     /// Address of CoLink server
