@@ -1,0 +1,25 @@
+syntax = "proto3";
+package remote_storage;
+
+message CreateParams {
+    string remote_key_name = 1;
+    bool is_public = 2;
+    bytes payload = 3;
+}
+
+message ReadParams {
+    string remote_key_name = 1;
+    bool is_public = 2;
+    string holder_id = 3;
+}
+
+message UpdateParams {
+    string remote_key_name = 1;
+    bool is_public = 2;
+    bytes payload = 3;
+}
+
+message DeleteParams {
+    string remote_key_name = 1;
+    bool is_public = 2;
+}
