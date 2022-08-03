@@ -1,13 +1,13 @@
 use crate::colink_proto::*;
+use colink_remote_storage::*;
 use prost::Message;
-use remote_storage_proto::*;
-mod remote_storage_proto {
-    include!(concat!(env!("OUT_DIR"), "/remote_storage.rs"));
+mod colink_remote_storage {
+    include!(concat!(env!("OUT_DIR"), "/colink_remote_storage.rs"));
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-impl crate::basic_a::CoLink {
+impl crate::application::CoLink {
     pub async fn set_variable(
         &self,
         key: &str,

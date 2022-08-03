@@ -1,5 +1,4 @@
-pub mod args;
-use crate::basic_a::*;
+use crate::application::*;
 pub use async_trait::async_trait;
 use futures_lite::stream::StreamExt;
 use lapin::{
@@ -188,14 +187,38 @@ pub fn _protocol_start(
     Ok(())
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "CoLink-SDK", about = "CoLink-SDK")]
+pub struct CommandLineArgs {
+    /// Address of CoLink server
+    #[structopt(short, long)]
+    pub addr: String,
+
+    /// User JWT
+    #[structopt(short, long)]
+    pub jwt: String,
+
+    /// Path to CA certificate.
+    #[structopt(long)]
+    pub ca: Option<String>,
+
+    /// Path to client certificate.
+    #[structopt(long)]
+    pub cert: Option<String>,
+
+    /// Path to private key.
+    #[structopt(long)]
+    pub key: Option<String>,
+}
+
 pub fn _colink_parse_args() -> CoLink {
-    let args::CommandLineArgs {
+    let CommandLineArgs {
         addr,
         jwt,
         ca,
         cert,
         key,
-    } = args::CommandLineArgs::from_args();
+    } = CommandLineArgs::from_args();
     let mut cl = CoLink::new(&addr, &jwt);
     if let Some(ca) = ca {
         cl = cl.ca_certificate(&ca);

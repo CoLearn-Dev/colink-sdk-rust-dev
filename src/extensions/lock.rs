@@ -2,7 +2,7 @@ use rand::Rng;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-impl crate::basic_a::CoLink {
+impl crate::application::CoLink {
     /// The default retry time cap is 100 ms. If you want to specify a retry time cap, use lock_with_retry_time instead.
     pub async fn lock(&self, key: &str) -> Result<CoLinkLockToken, Error> {
         self.lock_with_retry_time(key, 100).await
