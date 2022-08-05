@@ -12,6 +12,9 @@ cargo run --example host_import_user <address> <host_jwt> <expiration_timestamp>
 cargo run --example host_import_users_and_exchange_guest_jwts <address> <host_jwt> <number> <expiration_timestamp> # <expiration_timestamp> is optional
 ```
 ```
+cargo run --example host_import_users_and_set_registry <address> <host_jwt> <number> <expiration_timestamp> # <expiration_timestamp> is optional
+```
+```
 cargo run --example user_confirm_task <address> <user_jwt> <task_id> <action> # <action>: approve(default)/reject/ignore
 ```
 ```
