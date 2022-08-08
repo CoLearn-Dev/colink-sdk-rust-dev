@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let registries = Registries {
         registries: vec![registry],
     };
-    clt.set_registries(&registries).await?;
+    clt.update_registries(&registries).await?;
     for i in 0..num {
         let (pk, sk) = generate_user();
         let (_, core_pub_key) = cl.request_core_info().await?;
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
                 .await?,
         );
         let cl = CoLink::new(addr, &users[i]);
-        cl.set_registries(&registries).await?;
+        cl.update_registries(&registries).await?;
     }
     println!("user:");
     for i in 0..num {

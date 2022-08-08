@@ -8,10 +8,10 @@ mod colink_registry_proto {
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
-    pub async fn set_registries(&self, registries: &Registries) -> Result<(), Error> {
+    pub async fn update_registries(&self, registries: &Registries) -> Result<(), Error> {
         let participants = vec![Participant {
             user_id: self.get_user_id()?,
-            role: "set_registries".to_string(),
+            role: "update_registries".to_string(),
         }];
         let mut payload = vec![];
         registries.encode(&mut payload).unwrap();
