@@ -70,7 +70,7 @@ impl crate::application::CoLink {
             .await?;
         if status[0] == 0 {
             let data = self
-                .read_or_wait(&format!("tasks:{}:data", task_id))
+                .read_or_wait(&format!("tasks:{}:output", task_id))
                 .await?;
             Ok(data)
         } else {
@@ -109,20 +109,20 @@ impl crate::application::CoLink {
 
     pub async fn remote_storage_delete(
         &self,
-        provider: &str,
+        providers: &[String],
         key: &str,
         is_public: bool,
     ) -> Result<(), Error> {
-        let participants = vec![
-            Participant {
-                user_id: self.get_user_id()?,
-                role: "requester".to_string(),
-            },
-            Participant {
+        let mut participants = vec![Participant {
+            user_id: self.get_user_id()?,
+            role: "requester".to_string(),
+        }];
+        for provider in providers {
+            participants.push(Participant {
                 user_id: provider.to_string(),
                 role: "provider".to_string(),
-            },
-        ];
+            });
+        }
         let params = DeleteParams {
             remote_key_name: key.to_string(),
             is_public,
