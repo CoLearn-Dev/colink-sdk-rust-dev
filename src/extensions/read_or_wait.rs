@@ -4,7 +4,6 @@ use tracing::debug;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
-    #[cfg(feature = "extension")]
     pub async fn read_or_wait(&self, key: &str) -> Result<Vec<u8>, Error> {
         match self.read_entry(key).await {
             Ok(res) => Ok(res),

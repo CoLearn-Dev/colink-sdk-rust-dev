@@ -52,7 +52,6 @@ impl crate::application::CoLink {
     }
 }
 
-#[cfg(feature = "lock")]
 pub struct CoLinkLockToken {
     key: String,
     rnd_num: i32,

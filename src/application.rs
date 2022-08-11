@@ -100,6 +100,13 @@ impl CoLink {
         Ok(auth_content.user_id)
     }
 
+    pub fn get_core_addr(&self) -> Result<String, String> {
+        if self.core_addr.is_empty() {
+            return Err("core_addr not found".to_string());
+        }
+        Ok(self.core_addr.clone())
+    }
+
     pub fn update_jwt(&mut self, new_jwt: &str) -> Result<(), String> {
         self.jwt = new_jwt.to_string();
         Ok(())
