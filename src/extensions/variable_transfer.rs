@@ -2,6 +2,7 @@ use crate::colink_proto::*;
 use colink_remote_storage::*;
 use prost::Message;
 mod colink_remote_storage {
+    #![allow(clippy::derive_partial_eq_without_eq)]
     include!(concat!(env!("OUT_DIR"), "/colink_remote_storage.rs"));
 }
 

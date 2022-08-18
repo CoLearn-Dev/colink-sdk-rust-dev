@@ -2,6 +2,7 @@ use crate::colink_proto::*;
 pub use colink_registry_proto::{Registries, Registry};
 use prost::Message;
 mod colink_registry_proto {
+    #![allow(clippy::derive_partial_eq_without_eq)]
     include!(concat!(env!("OUT_DIR"), "/colink_registry.rs"));
 }
 
