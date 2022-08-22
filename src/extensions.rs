@@ -1,3 +1,5 @@
+#[cfg(feature = "get_participant_id")]
+mod get_participant_id;
 #[cfg(feature = "lock")]
 mod lock;
 #[cfg(feature = "read_or_wait")]

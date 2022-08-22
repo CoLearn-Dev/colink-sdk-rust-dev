@@ -28,8 +28,9 @@ tonic-build = "0.7"
 
 [features]
 default = ["extensions"]
-extensions = ["read_or_wait", "lock", "variable_transfer", "registry"]
+extensions = ["read_or_wait", "get_participant_id", "lock", "variable_transfer", "registry"]
 read_or_wait = []
+get_participant_id = []
 lock = []
 remote_storage = ["read_or_wait"]
 variable_transfer = ["read_or_wait", "remote_storage"]
