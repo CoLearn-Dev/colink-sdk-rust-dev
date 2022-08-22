@@ -1,8 +1,8 @@
-#[cfg(feature = "get_participant_id")]
+#[cfg(feature = "extensions")]
 mod get_participant_id;
-#[cfg(feature = "lock")]
+#[cfg(feature = "extensions")]
 mod lock;
-#[cfg(feature = "read_or_wait")]
+#[cfg(feature = "extensions")]
 mod read_or_wait;
 #[cfg(feature = "registry")]
 pub mod registry;

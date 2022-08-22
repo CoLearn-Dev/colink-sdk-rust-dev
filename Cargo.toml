@@ -1,6 +1,6 @@
 [package]
 name = "colink-sdk"
-version = "0.1.12"
+version = "0.1.13"
 edition = "2021"
 
 [dependencies]
@@ -27,11 +27,8 @@ prost-build = "0.10"
 tonic-build = "0.7"
 
 [features]
-default = ["extensions"]
-extensions = ["read_or_wait", "get_participant_id", "lock", "variable_transfer", "registry"]
-read_or_wait = []
-get_participant_id = []
-lock = []
-remote_storage = ["read_or_wait"]
-variable_transfer = ["read_or_wait", "remote_storage"]
+default = ["extensions", "remote_storage", "variable_transfer", "registry"]
+extensions = []
+remote_storage = ["extensions"]
+variable_transfer = ["extensions", "remote_storage"]
 registry = []
