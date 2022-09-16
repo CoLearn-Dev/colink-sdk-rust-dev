@@ -8,7 +8,7 @@ For protocol developers, CoLink SDK provides a toolkit for protocol developers w
 Add this to your Cargo.toml:
 ```
 [dependencies]
-colink-sdk = "0.1.14"
+colink = "0.1.14"
 ```
 
 ## Getting Started

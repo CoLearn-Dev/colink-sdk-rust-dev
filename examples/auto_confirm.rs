@@ -1,4 +1,4 @@
-use colink_sdk::{CoLink, CoLinkInternalTaskIdList, StorageEntry, SubscriptionMessage, Task};
+use colink::{CoLink, CoLinkInternalTaskIdList, StorageEntry, SubscriptionMessage, Task};
 use prost::Message;
 use std::env;
 use tracing::debug;

@@ -1,5 +1,5 @@
 [package]
-name = "colink-sdk"
+name = "colink"
 version = "0.1.14"
 edition = "2021"
 

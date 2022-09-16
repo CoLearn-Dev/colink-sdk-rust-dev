@@ -1,4 +1,4 @@
-use colink_sdk::*;
+use colink::*;
 use std::env;
 
 #[tokio::main]

@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
-use colink_sdk::{CoLink, Participant, ProtocolEntry};
+use colink::{CoLink, Participant, ProtocolEntry};
 
 struct Initiator;
-#[colink_sdk::async_trait]
+#[colink::async_trait]
 impl ProtocolEntry for Initiator {
     async fn start(
         &self,
@@ -16,7 +16,7 @@ impl ProtocolEntry for Initiator {
 }
 
 struct Receiver;
-#[colink_sdk::async_trait]
+#[colink::async_trait]
 impl ProtocolEntry for Receiver {
     async fn start(
         &self,
@@ -31,7 +31,7 @@ impl ProtocolEntry for Receiver {
     }
 }
 
-colink_sdk::protocol_start!(
+colink::protocol_start!(
     ("greetings:initiator", Initiator), // bind initiator's entry function
     ("greetings:receiver", Receiver)    // bind receiver's entry function
 );

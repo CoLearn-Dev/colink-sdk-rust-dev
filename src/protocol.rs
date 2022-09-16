@@ -233,17 +233,17 @@ pub fn _colink_parse_args() -> CoLink {
 macro_rules! protocol_start {
     ( $( $x:expr ),* ) => {
         fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            let cl = colink_sdk::_colink_parse_args();
+            let cl = colink::_colink_parse_args();
 
             let mut user_funcs: std::collections::HashMap<
                 String,
-                Box<dyn colink_sdk::ProtocolEntry + Send + Sync>,
+                Box<dyn colink::ProtocolEntry + Send + Sync>,
             > = std::collections::HashMap::new();
             $(
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
 
-            colink_sdk::_protocol_start(cl, user_funcs)?;
+            colink::_protocol_start(cl, user_funcs)?;
 
             Ok(())
         }

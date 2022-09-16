@@ -1,4 +1,4 @@
-use colink_sdk::{CoLink, SubscriptionMessage, Task};
+use colink::{CoLink, SubscriptionMessage, Task};
 use std::env;
 use tracing::debug;
 
