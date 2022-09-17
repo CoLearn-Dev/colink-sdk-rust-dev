@@ -1,4 +1,4 @@
-use colink_sdk::{decode_jwt_without_validation, CoLink, SubscriptionMessage};
+use colink::{decode_jwt_without_validation, CoLink, SubscriptionMessage};
 use std::env;
 
 #[tokio::main]

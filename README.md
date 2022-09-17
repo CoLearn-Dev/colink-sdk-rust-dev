@@ -1,10 +1,39 @@
 # CoLink Rust SDK
 
-For application developers, CoLink SDK provides a toolkit for application developers which allows them to update storage, manage computation requests, and monitor CoLink server status.
+CoLink SDK helps both application adnd protocol developers access the functionalities provided by [the CoLink server](https://github.com/CoLearn-Dev/colink-server-dev).
 
-For protocol developers, CoLink SDK provides a toolkit for protocol developers which allows them to write CoLink Extensions that extend the functionality of CoLink to support new protocols.
+- For *application developers*, CoLink SDK allows them to update storage, manage computation requests, and monitor the CoLink server status.
+- For *protocol developers*, CoLink SDK allows them to write CoLink Extensions that extend the functionality of CoLink to support new protocols.
 
-## Application
+## Usage
+Add this to your Cargo.toml:
+```
+[dependencies]
+colink = "0.1.14"
+```
+
+## Getting Started
+You can use this SDK to run protocols, update storage, developing protocol operators. Here is a tutorial for you about how to start a greetings task between two users.
+- Set up CoLink server.
+Please refer to [colinkctl](https://github.com/CoLearn-Dev/colinkctl), and run the command below. For the following steps, we assume you are using the default settings in colinkctl.
+```bash
+colinkctl enable_dev_env
+```
+- Create two new terminals and start protocol operator for two users separately.
+```bash
+cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "1,1p" ~/.colink/user_token.txt)
+```
+```bash
+cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "2,2p" ~/.colink/user_token.txt)
+```
+- Run task
+```
+cargo run --example user_run_task http://localhost:8080 $(sed -n "1,2p" ~/.colink/user_token.txt)
+```
+- Check the output in protocol operators' terminals
+
+## More examples
+### Application
 ```
 cargo run --example host_import_user <address> <host_jwt> <expiration_timestamp> # <expiration_timestamp> is optional
 ```
@@ -48,7 +77,7 @@ cargo run --example user_lock <address> <user_jwt>
 cargo run --example user_remote_storage <address> <user_jwt A> <user_jwt B> <message> # <message> is optional
 ```
 
-## Protocol
+### Protocol
 ```
 cargo run --example protocol_greetings -- --addr <address> --jwt <user_jwt>
 ```
