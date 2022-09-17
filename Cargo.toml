@@ -2,6 +2,12 @@
 name = "colink"
 version = "0.1.14"
 edition = "2021"
+description = "CoLink Rust SDK"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/CoLearn-Dev"
+documentation = "https://docs.rs/colink"
+repository = "https://github.com/CoLearn-Dev/colink-sdk-rust-dev"
 
 [dependencies]
 async-trait = "0.1"
