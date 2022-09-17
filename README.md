@@ -27,7 +27,7 @@ cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(s
 cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "2,2p" ~/.colink/user_token.txt)
 ```
 - Run task
-```
+```bash
 cargo run --example user_run_task http://localhost:8080 $(sed -n "1,2p" ~/.colink/user_token.txt)
 ```
 - Check the output in protocol operators' terminals
