@@ -1,8 +1,9 @@
 # CoLink Rust SDK
 
-For application developers, CoLink SDK provides a toolkit for application developers which allows them to update storage, manage computation requests, and monitor CoLink server status.
+CoLink SDK helps both application adnd protocol developers access the functionalities provided by [the CoLink server](https://github.com/CoLearn-Dev/colink-server-dev).
 
-For protocol developers, CoLink SDK provides a toolkit for protocol developers which allows them to write CoLink Extensions that extend the functionality of CoLink to support new protocols.
+- For *application developers*, CoLink SDK allows them to update storage, manage computation requests, and monitor the CoLink server status.
+- For *protocol developers*, CoLink SDK allows them to write CoLink Extensions that extend the functionality of CoLink to support new protocols.
 
 ## Usage
 Add this to your Cargo.toml:
@@ -14,12 +15,15 @@ colink = "0.1.14"
 ## Getting Started
 You can use this SDK to run protocols, update storage, developing protocol operators. Here is a tutorial for you about how to start a greetings task between two users.
 - Set up CoLink server.
-Please refer to [colinkctl](https://github.com/CoLearn-Dev/colinkctl), and run `colinkctl enable_dev_env`. For the following steps, we assume you are using the default settings in colinkctl.
-- Create two new terminals and start protocol operator for two users separately.
+Please refer to [colinkctl](https://github.com/CoLearn-Dev/colinkctl), and run the command below. For the following steps, we assume you are using the default settings in colinkctl.
+```bash
+colinkctl enable_dev_env
 ```
+- Create two new terminals and start protocol operator for two users separately.
+```bash
 cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "1,1p" ~/.colink/user_token.txt)
 ```
-```
+```bash
 cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "2,2p" ~/.colink/user_token.txt)
 ```
 - Run task
