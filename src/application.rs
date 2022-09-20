@@ -414,6 +414,39 @@ impl CoLink {
         let subscriber = CoLinkSubscriber::new(&mq_uri, queue_name).await?;
         Ok(subscriber)
     }
+
+    pub async fn start_protocol_operator(
+        &self,
+        protocol_name: &str,
+        user_id: &str,
+    ) -> Result<String, Error> {
+        let mut client = self._grpc_connect(&self.core_addr).await?;
+        let request = generate_request(
+            &self.jwt,
+            ProtocolOperatorInstance {
+                protocol_name: protocol_name.to_string(),
+                user_id: user_id.to_string(),
+                ..Default::default()
+            },
+        );
+        let response = client.start_protocol_operator(request).await?;
+        debug!("RESPONSE={:?}", response);
+        Ok(response.get_ref().instance_id.clone())
+    }
+
+    pub async fn stop_protocol_operator(&self, instance_id: &str) -> Result<(), Error> {
+        let mut client = self._grpc_connect(&self.core_addr).await?;
+        let request = generate_request(
+            &self.jwt,
+            ProtocolOperatorInstance {
+                instance_id: instance_id.to_string(),
+                ..Default::default()
+            },
+        );
+        let response = client.stop_protocol_operator(request).await?;
+        debug!("RESPONSE={:?}", response);
+        Ok(())
+    }
 }
 
 pub struct CoLinkSubscriber {
