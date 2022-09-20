@@ -191,23 +191,23 @@ pub fn _protocol_start(
 #[structopt(name = "CoLink-SDK", about = "CoLink-SDK")]
 pub struct CommandLineArgs {
     /// Address of CoLink server
-    #[structopt(short, long)]
+    #[structopt(short, long, env = "COLINK_CORE_ADDR")]
     pub addr: String,
 
     /// User JWT
-    #[structopt(short, long)]
+    #[structopt(short, long, env = "COLINK_JWT")]
     pub jwt: String,
 
     /// Path to CA certificate.
-    #[structopt(long)]
+    #[structopt(long, env = "COLINK_CA_CERT")]
     pub ca: Option<String>,
 
     /// Path to client certificate.
-    #[structopt(long)]
+    #[structopt(long, env = "COLINK_CLIENT_CERT")]
     pub cert: Option<String>,
 
     /// Path to private key.
-    #[structopt(long)]
+    #[structopt(long, env = "COLINK_CLIENT_KEY")]
     pub key: Option<String>,
 }
 
