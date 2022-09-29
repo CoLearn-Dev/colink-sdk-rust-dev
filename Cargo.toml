@@ -1,6 +1,6 @@
 [package]
 name = "colink"
-version = "0.1.15"
+version = "0.1.16"
 edition = "2021"
 description = "CoLink Rust SDK"
 license = "MIT"
@@ -16,7 +16,7 @@ chrono = "0.4"
 ctrlc = { version = "3.2", features = ["termination"] }
 futures-lite = "1.12"
 lapin = "2.1"
-openssl = "0.10"
+openssl = { version = "0.10", features = ["vendored"] }
 prost = "0.10"
 rand = { version = "0.8.4", features = ["std_rng"] }
 secp256k1 = { version = "0.21.2", features = ["rand-std"] }
