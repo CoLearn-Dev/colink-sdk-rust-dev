@@ -160,7 +160,54 @@ pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
 ) -> Result<(), Error> {
+    let mut real_user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
+    let mut protocols = vec![];
     for (protocol_and_role, user_func) in user_funcs {
+        let cl = cl.clone();
+        if protocol_and_role.ends_with(":@init") {
+            let protocol_name = protocol_and_role[..protocol_and_role.len() - 6].to_string();
+            let _ = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async move {
+                    let is_initialized_key =
+                        format!("_internal:protocols:{}:_is_initialized", protocol_name);
+                    let lock = cl.lock(&is_initialized_key).await?;
+                    let res = cl.read_entry(&is_initialized_key).await;
+                    if res.is_err() || res.unwrap()[0] == 0 {
+                        let cl_clone = cl.clone();
+                        match user_func
+                            .start(cl_clone, Default::default(), Default::default())
+                            .await
+                        {
+                            Ok(_) => {}
+                            Err(e) => error!("{}: {}.", protocol_and_role, e),
+                        }
+                        cl.update_entry(&is_initialized_key, &[1]).await?;
+                    }
+                    cl.unlock(lock).await?;
+                    Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
+                });
+        } else {
+            protocols.push(protocol_and_role[..protocol_and_role.rfind(':').unwrap()].to_string());
+            real_user_funcs.insert(protocol_and_role, user_func);
+        }
+    }
+    let cl_clone = cl.clone();
+    let _ = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async move {
+            for protocol_name in protocols {
+                let is_initialized_key =
+                    format!("_internal:protocols:{}:_is_initialized", protocol_name);
+                cl_clone.update_entry(&is_initialized_key, &[1]).await?;
+            }
+            Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
+        });
+    for (protocol_and_role, user_func) in real_user_funcs {
         let cl = cl.clone();
         thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
