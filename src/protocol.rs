@@ -160,7 +160,7 @@ pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
 ) -> Result<(), Error> {
-    let mut real_user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
+    let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
     let mut protocols = vec![];
     for (protocol_and_role, user_func) in user_funcs {
         let cl = cl.clone();
@@ -191,7 +191,7 @@ pub fn _protocol_start(
                 });
         } else {
             protocols.push(protocol_and_role[..protocol_and_role.rfind(':').unwrap()].to_string());
-            real_user_funcs.insert(protocol_and_role, user_func);
+            operator_funcs.insert(protocol_and_role, user_func);
         }
     }
     let cl_clone = cl.clone();
@@ -207,7 +207,7 @@ pub fn _protocol_start(
             }
             Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
         });
-    for (protocol_and_role, user_func) in real_user_funcs {
+    for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
         thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
