@@ -6,9 +6,9 @@ use lapin::{
     types::FieldTable,
     Connection, ConnectionProperties, Consumer,
 };
-use openssl::sha::sha256;
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tonic::{
     metadata::MetadataValue,
     transport::{Certificate, Channel, ClientTlsConfig, Identity},
@@ -516,8 +516,11 @@ pub fn prepare_import_user_signature(
     msg.extend_from_slice(&signature_timestamp.to_le_bytes());
     msg.extend_from_slice(&expiration_timestamp.to_le_bytes());
     msg.extend_from_slice(&core_pub_key.serialize());
+    let mut hasher = Sha256::new();
+    hasher.update(&msg);
+    let sha256 = hasher.finalize();
     let signature = secp.sign_ecdsa(
-        &secp256k1::Message::from_slice(&sha256(&msg)).unwrap(),
+        &secp256k1::Message::from_slice(&sha256).unwrap(),
         user_sec_key,
     );
     (signature_timestamp, signature.serialize_compact().to_vec())
