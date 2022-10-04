@@ -9,7 +9,7 @@ CoLink SDK helps both application adnd protocol developers access the functional
 Add this to your Cargo.toml:
 ```toml
 [dependencies]
-colink = "0.1.18"
+colink = "0.1.19"
 ```
 
 ## Getting Started
