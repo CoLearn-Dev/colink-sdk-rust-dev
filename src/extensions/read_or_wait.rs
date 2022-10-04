@@ -8,7 +8,7 @@ impl crate::application::CoLink {
         match self.read_entry(key).await {
             Ok(res) => Ok(res),
             Err(e) => {
-                let queue_name = self.subscribe(key, None).await?;
+                let queue_name = self.subscribe(key, Some(0)).await?;
                 let mut subscriber = self.new_subscriber(&queue_name).await?;
                 let data = subscriber.get_next().await?;
                 debug!("Received [{}]", String::from_utf8_lossy(&data));

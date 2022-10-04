@@ -10,3 +10,5 @@ pub mod registry;
 mod remote_storage;
 #[cfg(feature = "variable_transfer")]
 mod variable_transfer;
+#[cfg(feature = "extensions")]
+mod wait_task;
