@@ -45,4 +45,3 @@ jobs:
         working-directory: tests
       - name: Run tests
         run: cargo test
-        timeout-minutes: 10
