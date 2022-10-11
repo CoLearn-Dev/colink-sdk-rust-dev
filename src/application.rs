@@ -419,14 +419,15 @@ impl CoLink {
         &self,
         protocol_name: &str,
         user_id: &str,
+        upgrade: bool,
     ) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,
-            ProtocolOperatorInstance {
+            StartProtocolOperatorRequest {
                 protocol_name: protocol_name.to_string(),
                 user_id: user_id.to_string(),
-                ..Default::default()
+                upgrade,
             },
         );
         let response = client.start_protocol_operator(request).await?;
@@ -438,9 +439,8 @@ impl CoLink {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,
-            ProtocolOperatorInstance {
+            ProtocolOperatorInstanceId {
                 instance_id: instance_id.to_string(),
-                ..Default::default()
             },
         );
         let response = client.stop_protocol_operator(request).await?;
