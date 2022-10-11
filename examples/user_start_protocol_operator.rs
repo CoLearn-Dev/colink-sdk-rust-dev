@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let user_id = decode_jwt_without_validation(jwt).unwrap().user_id;
     let cl = CoLink::new(addr, jwt);
     let instance_id = cl
-        .start_protocol_operator(protocol_name, &user_id, true)
+        .start_protocol_operator(protocol_name, &user_id, false)
         .await?;
     println!("Instance id: {}", instance_id);
 
