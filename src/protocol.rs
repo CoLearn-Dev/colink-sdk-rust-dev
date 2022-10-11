@@ -166,7 +166,7 @@ pub fn _protocol_start(
         let cl = cl.clone();
         if protocol_and_role.ends_with(":@init") {
             let protocol_name = protocol_and_role[..protocol_and_role.len() - 6].to_string();
-            let _ = tokio::runtime::Builder::new_multi_thread()
+            tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
@@ -188,14 +188,14 @@ pub fn _protocol_start(
                     }
                     cl.unlock(lock).await?;
                     Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
-                });
+                })?;
         } else {
             protocols.push(protocol_and_role[..protocol_and_role.rfind(':').unwrap()].to_string());
             operator_funcs.insert(protocol_and_role, user_func);
         }
     }
     let cl_clone = cl.clone();
-    let _ = tokio::runtime::Builder::new_multi_thread()
+    tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap()
@@ -206,7 +206,7 @@ pub fn _protocol_start(
                 cl_clone.update_entry(&is_initialized_key, &[1]).await?;
             }
             Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
-        });
+        })?;
     for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
         thread::spawn(|| {
