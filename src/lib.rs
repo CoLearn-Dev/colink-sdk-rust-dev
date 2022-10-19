@@ -1,7 +1,7 @@
+#![allow(clippy::derive_partial_eq_without_eq)]
 mod application;
 mod protocol;
 mod colink_proto {
-    #![allow(clippy::derive_partial_eq_without_eq)]
     tonic::include_proto!("colink");
 }
 pub use application::{
