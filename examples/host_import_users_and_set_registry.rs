@@ -1,3 +1,4 @@
+use colink::extensions::registry::{Registries, Registry};
 use colink::*;
 use std::env;
 

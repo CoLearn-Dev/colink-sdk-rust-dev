@@ -11,6 +11,4 @@ pub use colink_proto::*;
 pub use protocol::{
     CoLinkProtocol, ProtocolEntry, _colink_parse_args, _protocol_start, async_trait,
 };
-mod extensions;
-#[cfg(feature = "registry")]
-pub use extensions::registry::{Registries, Registry};
+pub mod extensions;
