@@ -10,13 +10,22 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 impl crate::application::CoLink {
     pub async fn policy_module_start(&self) -> Result<(), Error> {
         let lock = self.lock("_policy_module:settings").await?;
-        let mut settings: Settings = match self.read_entry("_policy_module:settings").await {
-            Ok(res) => prost::Message::decode(&*res)?,
-            Err(_) => Default::default(),
+        let (mut settings, timestamp): (Settings, i64) = match self
+            .read_entries(&[StorageEntry {
+                key_name: "_policy_module:settings".to_string(),
+                ..Default::default()
+            }])
+            .await
+        {
+            Ok(res) => (
+                prost::Message::decode(&*res[0].payload)?,
+                get_timestamp(&res[0].key_path),
+            ),
+            Err(_) => (Default::default(), 0),
         };
         if settings.enable {
             self.unlock(lock).await?;
-            return Err("The policy module has already been started.")?;
+            return self.wait_for_applying(timestamp).await; // Wait for the current timestamp to be applied.
         }
         settings.enable = true;
         let mut payload = vec![];
@@ -44,7 +53,7 @@ impl crate::application::CoLink {
         };
         if !settings.enable {
             self.unlock(lock).await?;
-            return Err("The policy module is not running.")?;
+            return Ok(()); // Return directly here because we only release the lock after the policy module truly stopped.
         }
         settings.enable = false;
         let mut payload = vec![];
@@ -54,8 +63,9 @@ impl crate::application::CoLink {
                 .update_entry("_policy_module:settings", &payload)
                 .await?,
         );
-        self.unlock(lock).await?;
-        self.wait_for_applying(timestamp).await
+        let res = self.wait_for_applying(timestamp).await;
+        self.unlock(lock).await?; // Unlock after the policy module truly stopped.
+        res
     }
 
     pub async fn policy_module_get_rules(&self) -> Result<Vec<Rule>, Error> {
@@ -84,7 +94,9 @@ impl crate::application::CoLink {
                 .await?,
         );
         self.unlock(lock).await?;
-        self.wait_for_applying(timestamp).await?;
+        if settings.enable {
+            self.wait_for_applying(timestamp).await?;
+        }
         Ok(rule_id)
     }
 
@@ -103,7 +115,10 @@ impl crate::application::CoLink {
                 .await?,
         );
         self.unlock(lock).await?;
-        self.wait_for_applying(timestamp).await
+        if settings.enable {
+            self.wait_for_applying(timestamp).await?;
+        }
+        Ok(())
     }
 
     async fn wait_for_applying(&self, timestamp: i64) -> Result<(), Error> {
