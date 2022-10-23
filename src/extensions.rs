@@ -2,6 +2,8 @@
 mod get_participant_id;
 #[cfg(feature = "extensions")]
 mod lock;
+#[cfg(feature = "policy_module")]
+pub mod policy_module;
 #[cfg(feature = "extensions")]
 mod read_or_wait;
 #[cfg(feature = "registry")]
