@@ -9,7 +9,7 @@ use lapin::{
 use prost::Message;
 use std::{
     collections::{HashMap, HashSet},
-    sync::mpsc::channel,
+    sync::{mpsc::channel, Arc, Mutex},
     thread,
 };
 use structopt::StructOpt;
@@ -161,8 +161,10 @@ pub fn _protocol_start(
 ) -> Result<(), Error> {
     let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
     let mut protocols = HashSet::new();
+    let failed_protocols = Arc::new(Mutex::new(HashSet::new()));
     for (protocol_and_role, user_func) in user_funcs {
         let cl = cl.clone();
+        let failed_protocols = failed_protocols.clone();
         if protocol_and_role.ends_with(":@init") {
             let protocol_name = protocol_and_role[..protocol_and_role.len() - 6].to_string();
             tokio::runtime::Builder::new_multi_thread()
@@ -180,10 +182,14 @@ pub fn _protocol_start(
                             .start(cl_clone, Default::default(), Default::default())
                             .await
                         {
-                            Ok(_) => {}
-                            Err(e) => error!("{}: {}.", protocol_and_role, e),
+                            Ok(_) => {
+                                cl.update_entry(&is_initialized_key, &[1]).await?;
+                            }
+                            Err(e) => {
+                                error!("{}: {}.", protocol_and_role, e);
+                                failed_protocols.lock().unwrap().insert(protocol_name);
+                            }
                         }
-                        cl.update_entry(&is_initialized_key, &[1]).await?;
                     }
                     cl.unlock(lock).await?;
                     Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
@@ -193,6 +199,9 @@ pub fn _protocol_start(
                 .insert(protocol_and_role[..protocol_and_role.rfind(':').unwrap()].to_string());
             operator_funcs.insert(protocol_and_role, user_func);
         }
+    }
+    for failed_protocol in &*failed_protocols.lock().unwrap() {
+        protocols.remove(failed_protocol);
     }
     let cl_clone = cl.clone();
     tokio::runtime::Builder::new_multi_thread()
@@ -259,6 +268,7 @@ pub struct CommandLineArgs {
 }
 
 pub fn _colink_parse_args() -> CoLink {
+    tracing_subscriber::fmt::init();
     let CommandLineArgs {
         addr,
         jwt,
