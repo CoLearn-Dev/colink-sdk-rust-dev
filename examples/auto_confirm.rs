@@ -1,4 +1,7 @@
-use colink::{CoLink, CoLinkInternalTaskIdList, StorageEntry, SubscriptionMessage, Task};
+use colink::{
+    utils::get_path_timestamp, CoLink, CoLinkInternalTaskIdList, StorageEntry, SubscriptionMessage,
+    Task,
+};
 use prost::Message;
 use std::env;
 use tracing::debug;
@@ -37,11 +40,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
             let list_entry = &res[0];
             let list: CoLinkInternalTaskIdList = Message::decode(&*list_entry.payload).unwrap();
             if list.task_ids_with_key_paths.is_empty() {
-                get_timestamp(&list_entry.key_path)
+                get_path_timestamp(&list_entry.key_path)
             } else {
                 list.task_ids_with_key_paths
                     .iter()
-                    .map(|x| get_timestamp(&x.key_path))
+                    .map(|x| get_path_timestamp(&x.key_path))
                     .min()
                     .unwrap_or(i64::MAX)
             }
@@ -74,9 +77,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
             }
         }
     }
-}
-
-fn get_timestamp(key_path: &str) -> i64 {
-    let pos = key_path.rfind('@').unwrap();
-    key_path[pos + 1..].parse().unwrap()
 }

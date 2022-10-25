@@ -1,4 +1,4 @@
-use crate::colink_proto::*;
+use crate::{colink_proto::*, utils::get_path_timestamp};
 use prost::Message;
 use tracing::debug;
 
@@ -19,7 +19,7 @@ impl crate::application::CoLink {
                 if task.status == "finished" {
                     return Ok(());
                 }
-                get_timestamp(&res[0].key_path) + 1
+                get_path_timestamp(&res[0].key_path) + 1
             }
             Err(_) => 0,
         };
@@ -39,9 +39,4 @@ impl crate::application::CoLink {
         self.unsubscribe(&queue_name).await?;
         Ok(())
     }
-}
-
-fn get_timestamp(key_path: &str) -> i64 {
-    let pos = key_path.rfind('@').unwrap();
-    key_path[pos + 1..].parse().unwrap()
 }

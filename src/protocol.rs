@@ -1,4 +1,4 @@
-use crate::application::*;
+use crate::{application::*, utils::get_path_timestamp};
 pub use async_trait::async_trait;
 use futures_lite::stream::StreamExt;
 use lapin::{
@@ -7,7 +7,11 @@ use lapin::{
     Connection, ConnectionProperties,
 };
 use prost::Message;
-use std::{collections::HashMap, sync::mpsc::channel, thread};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::mpsc::channel,
+    thread,
+};
 use structopt::StructOpt;
 use tracing::{debug, error};
 
@@ -71,11 +75,11 @@ impl CoLinkProtocol {
                         let list: CoLinkInternalTaskIdList =
                             Message::decode(&*list_entry.payload).unwrap();
                         if list.task_ids_with_key_paths.is_empty() {
-                            get_timestamp(&list_entry.key_path)
+                            get_path_timestamp(&list_entry.key_path)
                         } else {
                             list.task_ids_with_key_paths
                                 .iter()
-                                .map(|x| get_timestamp(&x.key_path))
+                                .map(|x| get_path_timestamp(&x.key_path))
                                 .min()
                                 .unwrap_or(i64::MAX)
                         }
@@ -151,17 +155,12 @@ impl CoLinkProtocol {
     }
 }
 
-fn get_timestamp(key_path: &str) -> i64 {
-    let pos = key_path.rfind('@').unwrap();
-    key_path[pos + 1..].parse().unwrap()
-}
-
 pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
 ) -> Result<(), Error> {
     let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
-    let mut protocols = vec![];
+    let mut protocols = HashSet::new();
     for (protocol_and_role, user_func) in user_funcs {
         let cl = cl.clone();
         if protocol_and_role.ends_with(":@init") {
@@ -190,7 +189,8 @@ pub fn _protocol_start(
                     Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
                 })?;
         } else {
-            protocols.push(protocol_and_role[..protocol_and_role.rfind(':').unwrap()].to_string());
+            protocols
+                .insert(protocol_and_role[..protocol_and_role.rfind(':').unwrap()].to_string());
             operator_funcs.insert(protocol_and_role, user_func);
         }
     }
