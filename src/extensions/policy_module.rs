@@ -1,4 +1,4 @@
-use crate::colink_proto::*;
+use crate::{colink_proto::*, utils::get_path_timestamp};
 pub use colink_policy_module_proto::*;
 use prost::Message;
 mod colink_policy_module_proto {
@@ -19,7 +19,7 @@ impl crate::application::CoLink {
         {
             Ok(res) => (
                 prost::Message::decode(&*res[0].payload)?,
-                get_timestamp(&res[0].key_path),
+                get_path_timestamp(&res[0].key_path),
             ),
             Err(_) => (Default::default(), 0),
         };
@@ -30,7 +30,7 @@ impl crate::application::CoLink {
         settings.enable = true;
         let mut payload = vec![];
         settings.encode(&mut payload).unwrap();
-        let timestamp = get_timestamp(
+        let timestamp = get_path_timestamp(
             &self
                 .update_entry("_policy_module:settings", &payload)
                 .await?,
@@ -58,7 +58,7 @@ impl crate::application::CoLink {
         settings.enable = false;
         let mut payload = vec![];
         settings.encode(&mut payload).unwrap();
-        let timestamp = get_timestamp(
+        let timestamp = get_path_timestamp(
             &self
                 .update_entry("_policy_module:settings", &payload)
                 .await?,
@@ -88,7 +88,7 @@ impl crate::application::CoLink {
         settings.rules.push(rule);
         let mut payload = vec![];
         settings.encode(&mut payload).unwrap();
-        let timestamp = get_timestamp(
+        let timestamp = get_path_timestamp(
             &self
                 .update_entry("_policy_module:settings", &payload)
                 .await?,
@@ -109,7 +109,7 @@ impl crate::application::CoLink {
         settings.rules.retain(|x| x.rule_id != rule_id);
         let mut payload = vec![];
         settings.encode(&mut payload).unwrap();
-        let timestamp = get_timestamp(
+        let timestamp = get_path_timestamp(
             &self
                 .update_entry("_policy_module:settings", &payload)
                 .await?,
@@ -136,7 +136,7 @@ impl crate::application::CoLink {
                 if applied_settings_timestamp >= timestamp {
                     return Ok(());
                 }
-                get_timestamp(&res[0].key_path) + 1
+                get_path_timestamp(&res[0].key_path) + 1
             }
             Err(_) => 0,
         };
@@ -156,9 +156,4 @@ impl crate::application::CoLink {
         self.unsubscribe(&queue_name).await?;
         Ok(())
     }
-}
-
-fn get_timestamp(key_path: &str) -> i64 {
-    let pos = key_path.rfind('@').unwrap();
-    key_path[pos + 1..].parse().unwrap()
 }

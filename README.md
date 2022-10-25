@@ -9,7 +9,7 @@ CoLink SDK helps both application adnd protocol developers access the functional
 Add this to your Cargo.toml:
 ```toml
 [dependencies]
-colink = "0.1.21"
+colink = "0.1.22"
 ```
 
 ## Getting Started
@@ -36,6 +36,9 @@ cargo run --example user_run_task http://localhost:8080 $(sed -n "1,2p" ~/.colin
 ### Application
 ```
 cargo run --example host_import_user <address> <host_jwt> <expiration_timestamp> # <expiration_timestamp> is optional
+```
+```
+cargo run --example host_import_users <address> <host_jwt> <number> <expiration_timestamp> # <expiration_timestamp> is optional
 ```
 ```
 cargo run --example host_import_users_and_exchange_guest_jwts <address> <host_jwt> <number> <expiration_timestamp> # <expiration_timestamp> is optional
@@ -84,6 +87,9 @@ cargo run --example user_start_protocol_operator <address> <user_jwt> <protocol_
 ```
 ```
 cargo run --example user_stop_protocol_operator <address> <user_jwt> <instance_id>
+```
+```
+cargo run --example user_wait_task <address> <user_jwt> <target_user_id>
 ```
 
 ### Protocol

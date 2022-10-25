@@ -1,5 +1,5 @@
 use crate::colink_proto::*;
-pub use colink_registry_proto::{Registries, Registry};
+pub use colink_registry_proto::{Registries, Registry, UserRecord};
 use prost::Message;
 mod colink_registry_proto {
     include!(concat!(env!("OUT_DIR"), "/colink_registry.rs"));
