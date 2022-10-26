@@ -9,7 +9,7 @@ CoLink SDK helps both application adnd protocol developers access the functional
 Add this to your Cargo.toml:
 ```toml
 [dependencies]
-colink = "0.1.22"
+colink = "0.1.23"
 ```
 
 ## Getting Started
@@ -71,7 +71,7 @@ cargo run --example auto_confirm <address> <user_jwt> <protocol_name>
 cargo run --example get_next_greeting_message <address> <user_jwt> <start_timestamp> # <start_timestamp> is optional
 ```
 ```
-cargo run --example mtls_request_core_info <address> <ca_certificate> <client_cert> <client_key>
+cargo run --example mtls_request_info <address> <ca_certificate> <client_cert> <client_key>
 ```
 ```
 cargo run --example user_lock <address> <user_jwt>

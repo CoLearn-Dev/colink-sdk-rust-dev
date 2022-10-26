@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let mut guest_jwts = vec![];
     for i in 0..num {
         let (pk, sk) = generate_user();
-        let (_, core_pub_key) = cl.request_core_info().await?;
+        let (_, core_pub_key, _) = cl.request_info().await?;
         let (signature_timestamp, sig) =
             prepare_import_user_signature(&pk, &sk, &core_pub_key, expiration_timestamp);
         users.push(
