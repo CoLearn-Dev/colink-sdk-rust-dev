@@ -125,10 +125,8 @@ fn test_greetings(port: u16, user_num: usize) -> Result<(), Box<dyn std::error::
 }
 
 fn start_core(port: u16) -> Child {
-    Command::new("cargo")
+    Command::new("./colink-server")
         .args([
-            "run",
-            "--",
             "--address",
             CORE_ADDR,
             "--port",
@@ -140,6 +138,15 @@ fn start_core(port: u16) -> Child {
             "--mq-prefix",
             MQ_PREFIX,
         ])
+        .env(
+            "COLINK_HOME",
+            std::env::current_dir()
+                .unwrap()
+                .join("tests")
+                .join("colink-server")
+                .to_str()
+                .unwrap(),
+        )
         .current_dir("./tests/colink-server")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -148,13 +155,6 @@ fn start_core(port: u16) -> Child {
 }
 
 fn build() {
-    let mut core = Command::new("cargo")
-        .args(["build"])
-        .current_dir("./tests/colink-server")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
     let mut sdk = Command::new("cargo")
         .args(["build", "--all-targets"])
         .current_dir("./")
@@ -162,7 +162,6 @@ fn build() {
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    core.wait().unwrap();
     sdk.wait().unwrap();
 }
 

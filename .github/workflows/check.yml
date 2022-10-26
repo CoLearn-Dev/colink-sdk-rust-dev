@@ -38,10 +38,8 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy test
         run: cargo clippy --profile test -- -D warnings -D clippy::dbg_macro
-      - name: Pull and Build Server
-        env:
-          GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
-        run: bash pull-and-build-server.sh
+      - name: Download Server
+        run: bash download-server.sh
         working-directory: tests
       - name: Run tests
         run: cargo test
