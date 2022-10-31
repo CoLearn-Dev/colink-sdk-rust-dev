@@ -95,8 +95,7 @@ fn test_greetings(port: u16, user_num: usize) -> Result<(), Box<dyn std::error::
         });
     }
     for user in &users {
-        // TODO: set gen_range to (1..4) when we implement the blocker mentioned in https://github.com/camelop/dds-dev/issues/25
-        let num: usize = rand::thread_rng().gen_range(1..2); // Generate the number of operators for testing multiple protocol operators.
+        let num: usize = rand::thread_rng().gen_range(1..4); // Generate the number of operators for testing multiple protocol operators.
         for _ in 0..num {
             threads.push({
                 let user = user.clone();

@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         role: "query_from_registries".to_string(),
     }];
     let task_id = cl
-        .run_task("registry", target_user.as_bytes(), &participants, false)
+        .run_task("registry", &payload, &participants, false)
         .await?;
     println!(
         "Task {} has been created, waiting for it to finish...",
