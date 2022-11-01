@@ -76,7 +76,10 @@ impl crate::application::CoLink {
                 "--mq-api",
                 "http://guest:guest@localhost:15672/api",
                 "--mq-prefix",
-                &format!("colink-instant-server-{}", instant_server_id),
+                &format!("colink-instant-server-{}", port),
+                "--core-uri",
+                &format!("http://127.0.0.1:{}", port),
+                "--inter-core-reverse-mode",
             ])
             .env("COLINK_HOME", colink_home)
             .current_dir(working_dir)
@@ -94,13 +97,15 @@ impl crate::application::CoLink {
     pub async fn new_instant_server() -> Self {
         let instant_server = Self::start_instant_server();
         let user_jwt = instant_server.create_user().await.unwrap();
-        Self {
+        let cl = Self {
             core_addr: format!("http://127.0.0.1:{}", instant_server.port),
             jwt: user_jwt,
             task_id: "".to_string(),
             ca_certificate: None,
             identity: None,
             _instant_server_process: Some(Arc::new(instant_server)),
-        }
+        };
+        cl.wait_user_init().await.unwrap();
+        cl
     }
 }

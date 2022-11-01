@@ -9,7 +9,7 @@ use lapin::{
 use prost::Message;
 use std::{
     collections::{HashMap, HashSet},
-    sync::{mpsc::channel, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
 };
 use structopt::StructOpt;
@@ -216,9 +216,10 @@ pub fn _protocol_start(
             }
             Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
         })?;
+    let mut threads = vec![];
     for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
-        thread::spawn(|| {
+        threads.push(thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
@@ -232,14 +233,11 @@ pub fn _protocol_start(
                         Err(e) => error!("Protocol {}: {}.", protocol_and_role, e),
                     }
                 });
-        });
+        }));
     }
-    let (tx, rx) = channel();
-    ctrlc::set_handler(move || tx.send(()).expect("Could not send signal on channel."))
-        .expect("Error setting Ctrl-C handler");
-    println!("Started");
-    rx.recv().expect("Could not receive from channel.");
-    println!("Exiting...");
+    for thread in threads {
+        thread.join().unwrap();
+    }
     Ok(())
 }
 
@@ -303,6 +301,26 @@ macro_rules! protocol_start {
             colink::_protocol_start(cl, user_funcs)?;
 
             Ok(())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! protocol_attach {
+    ( $cl:expr, $( $x:expr ),* ) => {
+        {
+            let cl = $cl.clone();
+            let mut user_funcs: std::collections::HashMap<
+                String,
+                Box<dyn colink::ProtocolEntry + Send + Sync>,
+            > = std::collections::HashMap::new();
+            $(
+                user_funcs.insert($x.0.to_string(), Box::new($x.1));
+            )*
+            std::thread::spawn(|| {
+                colink::_protocol_start(cl, user_funcs)?;
+                Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
+            });
         }
     };
 }
