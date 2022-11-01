@@ -1,5 +1,7 @@
 #[cfg(feature = "extensions")]
 mod get_participant_id;
+#[cfg(feature = "instant_server")]
+pub(crate) mod instant_server;
 #[cfg(feature = "extensions")]
 mod lock;
 #[cfg(feature = "policy_module")]
