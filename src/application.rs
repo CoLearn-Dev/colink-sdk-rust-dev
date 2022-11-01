@@ -30,9 +30,6 @@ pub struct CoLink {
     pub(crate) task_id: String,
     pub(crate) ca_certificate: Option<Certificate>,
     pub(crate) identity: Option<Identity>,
-    #[cfg(feature = "instant_server")]
-    pub(crate) _instant_server_process:
-        Option<std::sync::Arc<crate::extensions::instant_server::InstantServer>>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -45,8 +42,6 @@ impl CoLink {
             task_id: "".to_string(),
             ca_certificate: None,
             identity: None,
-            #[cfg(feature = "instant_server")]
-            _instant_server_process: None,
         }
     }
 

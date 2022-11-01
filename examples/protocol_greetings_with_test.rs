@@ -1,5 +1,5 @@
 #![allow(unused_variables)]
-use colink::{CoLink, Participant, ProtocolEntry};
+use colink::{extensions::instant_server::InstantServer, CoLink, Participant, ProtocolEntry};
 
 struct Initiator;
 #[colink::async_trait]
@@ -33,8 +33,12 @@ impl ProtocolEntry for Receiver {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let cl0 = CoLink::new_instant_server().await;
-    let cl1 = CoLink::new_instant_server().await;
+    let is0 = InstantServer::new();
+    let is1 = InstantServer::new();
+    let cl0 = is0.to_colink().clone_and_switch_to_generated_user().await?;
+    let cl1 = is0.to_colink().clone_and_switch_to_generated_user().await?;
+    cl0.wait_user_init().await?;
+    cl1.wait_user_init().await?;
     colink::protocol_attach!(
         cl0,
         ("greetings:initiator", Initiator),
