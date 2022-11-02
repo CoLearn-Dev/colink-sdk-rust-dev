@@ -1,3 +1,4 @@
+use std::fs::metadata;
 pub use crate::colink_proto::co_link_client::CoLinkClient;
 pub use crate::colink_proto::*;
 use futures_lite::stream::StreamExt;
@@ -15,6 +16,8 @@ use tonic::{
     Status,
 };
 use tracing::debug;
+
+const CHUNK_SIZE: usize = 1 * 1024 * 1024; // use 1MB chunks
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthContent {
@@ -161,8 +164,70 @@ impl CoLink {
         Ok(response.get_ref().jwt.clone())
     }
 
+    pub async fn _create_entry_bulk(
+        &self,
+        key_name: &str,
+        payload: &[u8],
+    ) -> Result<String, Error> {
+        let mut client = self._grpc_connect(&self.core_addr).await?;
+        let metadata_key = format!("{}::metadata", key_name);
+        let num_chunks = payload.len() / CHUNK_SIZE + 1;
+
+        let request = generate_request(
+            &self.jwt,
+            StorageEntry {
+                key_name: metadata_key,
+                payload: num_chunks.to_string().into_bytes(), // simply store the number of chunks in the metadata
+                ..Default::default()
+            },
+        );
+
+        let response = client.create_entry(request).await?;
+        if response.get_ref().status != 0 {
+            return Err(format!("create_entry failed: {:?}", response.get_ref().status).into());
+        }
+
+        let mut offset = 0;
+        let mut chunk_id = 0;
+        while offset < payload.len() {
+            let chunk_size = if offset + CHUNK_SIZE as usize > payload.len() {
+                payload.len() - offset
+            } else {
+                CHUNK_SIZE as usize
+            };
+            let chunk = payload[offset..offset + chunk_size].to_vec();
+            let request = generate_request(
+                &self.jwt,
+                StorageEntry {
+                    key_name: format!("{}::{}", key_name, chunk_id),
+                    payload: chunk,
+                    ..Default::default()
+                },
+            );
+
+            let response = client.create_entry(request).await?;
+            if response.get_ref().status != 0 {
+                return Err(format!("create_entry failed: {:?}", response.get_ref().status).into());
+            }
+
+            offset += chunk_size;
+            chunk_id += 1;
+        }
+
+        Ok(metadata_key.clone())
+    }
+
     pub async fn create_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
+        if key_name.contains("$") {
+            let token = key_name.split("$").last().unwrap();
+            if token.eq("chunk") {
+                let response = self._create_entry_bulk(key_name, payload).await?;
+                return Ok(response);
+            }
+            return Err("invalid storage option".into());
+        }
+
         let request = generate_request(
             &self.jwt,
             StorageEntry {
@@ -171,6 +236,7 @@ impl CoLink {
                 ..Default::default()
             },
         );
+
         let response = client.create_entry(request).await?;
         debug!("RESPONSE={:?}", response);
         Ok(response.get_ref().key_path.clone())
