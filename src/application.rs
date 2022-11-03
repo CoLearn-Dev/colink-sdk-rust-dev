@@ -1,4 +1,3 @@
-use std::fs::metadata;
 pub use crate::colink_proto::co_link_client::CoLinkClient;
 pub use crate::colink_proto::*;
 use futures_lite::stream::StreamExt;
