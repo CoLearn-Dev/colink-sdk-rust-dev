@@ -85,7 +85,7 @@ impl InstantServer {
             {
                 break;
             }
-            std::thread::sleep(core::time::Duration::from_millis(100));
+            std::thread::sleep(core::time::Duration::from_millis(10));
         }
         let host_token: String =
             String::from_utf8_lossy(&std::fs::read(working_dir.join("host_token.txt")).unwrap())

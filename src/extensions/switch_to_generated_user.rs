@@ -14,13 +14,7 @@ impl crate::application::CoLink {
             .await
     }
 
-    pub async fn switch_to_generated_user(&mut self) -> Result<(), Error> {
-        self.jwt = self.generate_user_and_import().await?;
-        self.wait_user_init().await?;
-        Ok(())
-    }
-
-    pub async fn clone_and_switch_to_generated_user(&self) -> Result<Self, Error> {
+    pub async fn switch_to_generated_user(&self) -> Result<Self, Error> {
         let cl = Self::new(&self.core_addr, &self.generate_user_and_import().await?);
         cl.wait_user_init().await?;
         Ok(cl)
