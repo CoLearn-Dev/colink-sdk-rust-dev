@@ -249,34 +249,41 @@ impl CoLink {
         Ok(response.get_ref().key_path.clone())
     }
 
-    // pub async fn _read_entry_bulk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
-    //     let mut client = self._grpc_connect(&self.core_addr).await?;
-    //     let metadata_key = format!("{}::metadata", key_name);
-    //     let request = generate_request(&self.jwt, StorageEntry {
-    //         key_name: metadata_key,
-    //         ..Default::default()
-    //     });
-    //
-    //     let response = client.read_entries(request).await?;
-    //
-    //     let num_chunks = std::str::from_utf8(&response.get_ref().payload).unwrap().parse::<usize>().unwrap();
-    //     let mut payload = Vec::new();
-    //     for chunk_id in 0..num_chunks {
-    //         let request = generate_request(&self.jwt, StorageEntry {
-    //             key_name: format!("{}::{}", key_name, chunk_id),
-    //             ..Default::default()
-    //         });
-    //
-    //         let response = client.get_entry(request).await?;
-    //         if response.get_ref().status != 0 {
-    //             return Err(format!("get_entry failed: {:?}", response.get_ref().status).into());
-    //         }
-    //
-    //         payload.extend_from_slice(&response.get_ref().payload);
-    //     }
-    //
-    //     Ok(payload)
-    // }
+    pub async fn _read_entry_bulk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
+        let mut client = self._grpc_connect(&self.core_addr).await?;
+        let metadata_key = format!("{}::metadata", key_name);
+        let request = generate_request(&self.jwt, StorageEntries {
+            entries: vec![StorageEntry {
+                key_path: metadata_key,
+                ..Default::default()
+            }],
+        });
+
+        let response = client.read_entries(request).await?;
+
+        let payload_string = String::from_utf8(response.get_ref().entries[0].payload.clone())?;
+        let num_chunks = payload_string.split("-").next().unwrap().parse::<usize>()?;
+        let locked = payload_string.split("-").last().unwrap().eq("locked");
+
+        if locked {
+            return Err("entry is locked".into());
+        }
+
+        let mut payload = Vec::new();
+        for chunk_id in 0..num_chunks {
+            let request = generate_request(&self.jwt, StorageEntries {
+                entries: vec![StorageEntry {
+                    key_path: format!("{}::{}", key_name, chunk_id),
+                    ..Default::default()
+                }],
+            });
+
+            let response = client.read_entries(request).await?;
+            payload.extend(response.get_ref().entries[0].payload.clone());
+        }
+
+        Ok(payload)
+    }
 
     pub async fn read_entries(&self, entries: &[StorageEntry]) -> Result<Vec<StorageEntry>, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
@@ -292,7 +299,15 @@ impl CoLink {
     }
 
     pub async fn read_entry(&self, key: &str) -> Result<Vec<u8>, Error> {
-        let storage_entry = if key.contains("::") {
+        let storage_entry = if key.contains("$") {
+            // magic mount logic
+            let token = key.split("$").last().unwrap();
+            if token.eq("chunk") {
+                let response = self._read_entry_bulk(key).await?;
+                return Ok(response);
+            }
+            return Err("invalid storage option".into());
+        } else if key.contains("::") {
             StorageEntry {
                 key_path: key.to_string(),
                 ..Default::default()
