@@ -99,7 +99,7 @@ impl InstantServer {
         }
     }
 
-    pub fn to_colink(&self) -> CoLink {
+    pub fn get_colink(&self) -> CoLink {
         CoLink::new(&format!("http://127.0.0.1:{}", self.port), &self.host_token)
     }
 }

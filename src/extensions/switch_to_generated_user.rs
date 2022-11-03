@@ -3,7 +3,7 @@ use crate::decode_jwt_without_validation;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
-    async fn __generate_user(&self) -> Result<String, Error> {
+    async fn generate_user_and_import(&self) -> Result<String, Error> {
         let auth_content = decode_jwt_without_validation(&self.jwt)?;
         let expiration_timestamp = auth_content.exp;
         let (pk, sk) = crate::generate_user();
@@ -15,11 +15,14 @@ impl crate::application::CoLink {
     }
 
     pub async fn switch_to_generated_user(&mut self) -> Result<(), Error> {
-        self.jwt = self.__generate_user().await?;
+        self.jwt = self.generate_user_and_import().await?;
+        self.wait_user_init().await?;
         Ok(())
     }
 
     pub async fn clone_and_switch_to_generated_user(&self) -> Result<Self, Error> {
-        Ok(Self::new(&self.core_addr, &self.__generate_user().await?))
+        let cl = Self::new(&self.core_addr, &self.generate_user_and_import().await?);
+        cl.wait_user_init().await?;
+        Ok(cl)
     }
 }
