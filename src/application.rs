@@ -45,23 +45,19 @@ impl CoLink {
         }
     }
 
-    pub fn ca_certificate(self, ca_certificate: &str) -> Self {
+    pub fn ca_certificate(mut self, ca_certificate: &str) -> Self {
         let ca_certificate = std::fs::read(ca_certificate).unwrap();
         let ca_certificate = Certificate::from_pem(ca_certificate);
-        Self {
-            ca_certificate: Some(ca_certificate),
-            ..self
-        }
+        self.ca_certificate = Some(ca_certificate);
+        self
     }
 
-    pub fn identity(self, client_cert: &str, client_key: &str) -> Self {
+    pub fn identity(mut self, client_cert: &str, client_key: &str) -> Self {
         let client_cert = std::fs::read(client_cert).unwrap();
         let client_key = std::fs::read(client_key).unwrap();
         let identity = Identity::from_pem(client_cert, client_key);
-        Self {
-            identity: Some(identity),
-            ..self
-        }
+        self.identity = Some(identity);
+        self
     }
 
     async fn _grpc_connect(&self, address: &str) -> Result<CoLinkClient<Channel>, Error> {
