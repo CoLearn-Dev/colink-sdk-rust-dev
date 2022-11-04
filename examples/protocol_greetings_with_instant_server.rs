@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let is0 = InstantServer::new();
     let is1 = InstantServer::new();
     let cl0 = is0.get_colink().switch_to_generated_user().await?;
-    let cl1 = is0.get_colink().switch_to_generated_user().await?;
+    let cl1 = is1.get_colink().switch_to_generated_user().await?;
     colink::protocol_attach!(
         cl0,
         ("greetings:initiator", Initiator),
