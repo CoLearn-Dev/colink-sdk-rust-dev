@@ -98,7 +98,7 @@ impl CoLinkProtocol {
         };
         self.cl.unlock(lock).await?;
 
-        let (mq_addr, _, _) = self.cl.request_info().await?;
+        let mq_addr = self.cl.request_info().await?.mq_uri;
         let mq = Connection::connect(&mq_addr, ConnectionProperties::default()).await?;
         let channel = mq.create_channel().await?;
         channel.basic_qos(1, BasicQosOptions::default()).await?;

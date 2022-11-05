@@ -7,7 +7,7 @@ impl crate::application::CoLink {
         let auth_content = decode_jwt_without_validation(&self.jwt)?;
         let expiration_timestamp = auth_content.exp;
         let (pk, sk) = crate::generate_user();
-        let (_, core_pub_key, _) = self.request_info().await?;
+        let core_pub_key = self.request_info().await?.core_public_key;
         let (signature_timestamp, sig) =
             crate::prepare_import_user_signature(&pk, &sk, &core_pub_key, expiration_timestamp);
         self.import_user(&pk, signature_timestamp, expiration_timestamp, &sig)

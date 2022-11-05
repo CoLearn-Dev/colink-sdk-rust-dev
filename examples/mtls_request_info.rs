@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let cl = CoLink::new(addr, "")
         .ca_certificate(ca_certificate)
         .identity(client_cert, client_key);
-    let (_, core_pub_key, _) = cl.request_info().await?;
+    let core_pub_key = cl.request_info().await?.core_public_key;
     println!("{}", core_pub_key);
 
     Ok(())
