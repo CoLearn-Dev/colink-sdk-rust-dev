@@ -350,13 +350,14 @@ impl CoLink {
         Ok(())
     }
 
-    pub async fn request_info(&self) -> Result<(String, secp256k1::PublicKey, String), Error> {
+    pub async fn request_info(&self) -> Result<CoLinkInfo, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(&self.jwt, Empty::default());
         let response = client.request_info(request).await?;
         debug!("RESPONSE={:?}", response);
         let mq_uri = response.get_ref().mq_uri.clone();
         let requestor_ip = response.get_ref().requestor_ip.clone();
+        let version = response.get_ref().version.clone();
         let core_public_key_vec: Vec<u8> = response.get_ref().core_public_key.clone();
         let core_public_key: secp256k1::PublicKey =
             match secp256k1::PublicKey::from_slice(&core_public_key_vec) {
@@ -368,7 +369,12 @@ impl CoLink {
                     ))))
                 }
             };
-        Ok((mq_uri, core_public_key, requestor_ip))
+        Ok(CoLinkInfo {
+            mq_uri,
+            core_public_key,
+            requestor_ip,
+            version,
+        })
     }
 
     pub async fn subscribe(
@@ -407,7 +413,7 @@ impl CoLink {
     }
 
     pub async fn new_subscriber(&self, queue_name: &str) -> Result<CoLinkSubscriber, Error> {
-        let (mq_uri, _, _) = self.request_info().await?;
+        let mq_uri = self.request_info().await?.mq_uri;
         let subscriber = CoLinkSubscriber::new(&mq_uri, queue_name).await?;
         Ok(subscriber)
     }
@@ -444,6 +450,13 @@ impl CoLink {
         debug!("RESPONSE={:?}", response);
         Ok(())
     }
+}
+
+pub struct CoLinkInfo {
+    pub mq_uri: String,
+    pub core_public_key: secp256k1::PublicKey,
+    pub requestor_ip: String,
+    pub version: String,
 }
 
 pub struct CoLinkSubscriber {

@@ -1,5 +1,6 @@
 use crate::{application::*, utils::get_path_timestamp};
 pub use async_trait::async_trait;
+use clap::Parser;
 use futures_lite::stream::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicQosOptions},
@@ -12,7 +13,6 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use structopt::StructOpt;
 use tracing::{debug, error};
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -98,7 +98,7 @@ impl CoLinkProtocol {
         };
         self.cl.unlock(lock).await?;
 
-        let (mq_addr, _, _) = self.cl.request_info().await?;
+        let mq_addr = self.cl.request_info().await?.mq_uri;
         let mq = Connection::connect(&mq_addr, ConnectionProperties::default()).await?;
         let channel = mq.create_channel().await?;
         channel.basic_qos(1, BasicQosOptions::default()).await?;
@@ -241,27 +241,27 @@ pub fn _protocol_start(
     Ok(())
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "CoLink-SDK", about = "CoLink-SDK")]
+#[derive(Debug, Parser)]
+#[command(name = "CoLink-SDK", about = "CoLink-SDK")]
 pub struct CommandLineArgs {
     /// Address of CoLink server
-    #[structopt(short, long, env = "COLINK_CORE_ADDR")]
+    #[arg(short, long, env = "COLINK_CORE_ADDR")]
     pub addr: String,
 
     /// User JWT
-    #[structopt(short, long, env = "COLINK_JWT")]
+    #[arg(short, long, env = "COLINK_JWT")]
     pub jwt: String,
 
     /// Path to CA certificate.
-    #[structopt(long, env = "COLINK_CA_CERT")]
+    #[arg(long, env = "COLINK_CA_CERT")]
     pub ca: Option<String>,
 
     /// Path to client certificate.
-    #[structopt(long, env = "COLINK_CLIENT_CERT")]
+    #[arg(long, env = "COLINK_CLIENT_CERT")]
     pub cert: Option<String>,
 
     /// Path to private key.
-    #[structopt(long, env = "COLINK_CLIENT_KEY")]
+    #[arg(long, env = "COLINK_CLIENT_KEY")]
     pub key: Option<String>,
 }
 
@@ -273,7 +273,7 @@ pub fn _colink_parse_args() -> CoLink {
         ca,
         cert,
         key,
-    } = CommandLineArgs::from_args();
+    } = CommandLineArgs::parse();
     let mut cl = CoLink::new(&addr, &jwt);
     if let Some(ca) = ca {
         cl = cl.ca_certificate(&ca);

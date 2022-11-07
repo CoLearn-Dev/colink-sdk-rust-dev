@@ -1,6 +1,6 @@
 [package]
 name = "colink"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "CoLink Rust SDK"
 license = "MIT"
@@ -13,6 +13,7 @@ repository = "https://github.com/CoLearn-Dev/colink-sdk-rust-dev"
 async-trait = "0.1"
 base64 = "0.13.0"
 chrono = "0.4"
+clap = { version = "4.0", features = ["derive", "env"] }
 futures-lite = "1.12"
 lapin = "2.1"
 prost = "0.10"
@@ -21,7 +22,6 @@ secp256k1 = { version = "0.21.2", features = ["rand-std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
-structopt = "0.3"
 tokio = { version = "1.18", features = ["macros", "rt-multi-thread", "rt", "fs"] }
 tonic = { version = "0.7", features = ["tls", "tls-roots"] }
 tracing = "0.1"
