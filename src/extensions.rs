@@ -14,3 +14,5 @@ mod remote_storage;
 mod variable_transfer;
 #[cfg(feature = "extensions")]
 mod wait_task;
+#[cfg(feature = "magic_mount")]
+mod magic_mount;

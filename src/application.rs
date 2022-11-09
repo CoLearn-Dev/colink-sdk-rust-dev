@@ -16,7 +16,7 @@ use tonic::{
 };
 use tracing::debug;
 
-const CHUNK_SIZE: usize = 1 * 1024 * 1024; // use 1MB chunks
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthContent {
@@ -66,7 +66,7 @@ impl CoLink {
         }
     }
 
-    async fn _grpc_connect(&self, address: &str) -> Result<CoLinkClient<Channel>, Error> {
+    pub async fn _grpc_connect(&self, address: &str) -> Result<CoLinkClient<Channel>, Error> {
         let channel = if self.ca_certificate.is_none() && self.identity.is_none() {
             Channel::builder(address.parse()?).connect().await?
         } else {
@@ -163,68 +163,9 @@ impl CoLink {
         Ok(response.get_ref().jwt.clone())
     }
 
-    pub async fn _create_entry_bulk(
-        &self,
-        key_name: &str,
-        payload: &[u8],
-    ) -> Result<String, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
-        let metadata_key = format!("{}::metadata", key_name);
-        let metadata_key_copy = metadata_key.clone();
-        let result = metadata_key.clone();
-        let num_chunks = payload.len() / CHUNK_SIZE + 1;
-
-        let create_request = generate_request(
-            &self.jwt,
-            StorageEntry {
-                key_name: metadata_key,
-                payload: (num_chunks.to_string() + "-locked").into_bytes(), // simply store the number of chunks in the metadata
-                ..Default::default()
-            },
-        );
-
-        client.create_entry(create_request).await?;
-
-        let mut offset = 0;
-        let mut chunk_id = 0;
-        while offset < payload.len() {
-            let chunk_size = if offset + CHUNK_SIZE as usize > payload.len() {
-                payload.len() - offset
-            } else {
-                CHUNK_SIZE as usize
-            };
-            let chunk = payload[offset..offset + chunk_size].to_vec();
-            let request = generate_request(
-                &self.jwt,
-                StorageEntry {
-                    key_name: format!("{}::{}", key_name, chunk_id),
-                    payload: chunk,
-                    ..Default::default()
-                },
-            );
-
-            client.create_entry(request).await?;
-
-            offset += chunk_size;
-            chunk_id += 1;
-        }
-
-        let update_request = generate_request(
-            &self.jwt,
-            StorageEntry {
-                key_name: metadata_key_copy,
-                payload: (num_chunks.to_string() + "-unlocked").into_bytes(),
-                ..Default::default()
-            },
-        );
-
-        client.update_entry(update_request).await?;
-
-        Ok(result)
-    }
-
     pub async fn create_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
+        #[cfg(feature = "magic_mount")]
         if key_name.contains("$") {
             let token = key_name.split("$").last().unwrap();
             if token.eq("chunk") {
@@ -248,42 +189,6 @@ impl CoLink {
         Ok(response.get_ref().key_path.clone())
     }
 
-    pub async fn _read_entry_bulk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
-        let metadata_key = format!("{}::metadata", key_name);
-        let request = generate_request(&self.jwt, StorageEntries {
-            entries: vec![StorageEntry {
-                key_path: metadata_key,
-                ..Default::default()
-            }],
-        });
-
-        let response = client.read_entries(request).await?;
-
-        let payload_string = String::from_utf8(response.get_ref().entries[0].payload.clone())?;
-        let num_chunks = payload_string.split("-").next().unwrap().parse::<usize>()?;
-        let locked = payload_string.split("-").last().unwrap().eq("locked");
-
-        if locked {
-            return Err("entry is locked".into());
-        }
-
-        let mut payload = Vec::new();
-        for chunk_id in 0..num_chunks {
-            let request = generate_request(&self.jwt, StorageEntries {
-                entries: vec![StorageEntry {
-                    key_path: format!("{}::{}", key_name, chunk_id),
-                    ..Default::default()
-                }],
-            });
-
-            let response = client.read_entries(request).await?;
-            payload.extend(response.get_ref().entries[0].payload.clone());
-        }
-
-        Ok(payload)
-    }
-
     pub async fn read_entries(&self, entries: &[StorageEntry]) -> Result<Vec<StorageEntry>, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
@@ -298,15 +203,17 @@ impl CoLink {
     }
 
     pub async fn read_entry(&self, key: &str) -> Result<Vec<u8>, Error> {
-        let storage_entry = if key.contains("$") {
-            // magic mount logic
+        #[cfg(feature = "magic_mount")]
+        if key.contains("$") {
             let token = key.split("$").last().unwrap();
             if token.eq("chunk") {
                 let response = self._read_entry_bulk(key).await?;
                 return Ok(response);
             }
             return Err("invalid storage option".into());
-        } else if key.contains("::") {
+        }
+
+        let storage_entry = if key.contains("::") {
             StorageEntry {
                 key_path: key.to_string(),
                 ..Default::default()
@@ -321,70 +228,9 @@ impl CoLink {
         Ok(res[0].payload.clone())
     }
 
-    pub async fn _update_entry_bulk(
-        &self,
-        key_name: &str,
-        payload: &[u8],
-    ) -> Result<String, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
-        let metadata_key = format!("{}::metadata", key_name);
-        let metadata_key_copy = metadata_key.clone();
-        let result = metadata_key.clone();
-        let num_chunks = payload.len() / CHUNK_SIZE + 1;
-
-        let request = generate_request(
-            &self.jwt,
-            StorageEntry {
-                key_name: metadata_key,
-                // store number of chunks and lock in metadata
-                payload: (num_chunks.to_string() + "-locked").into_bytes(),
-                ..Default::default()
-            },
-        );
-
-        client.update_entry(request).await?;
-
-        let mut offset = 0;
-        let mut chunk_id = 0;
-        while offset < payload.len() {
-            let chunk_size = if offset + CHUNK_SIZE as usize > payload.len() {
-                payload.len() - offset
-            } else {
-                CHUNK_SIZE as usize
-            };
-            let chunk = payload[offset..offset + chunk_size].to_vec();
-            let request = generate_request(
-                &self.jwt,
-                StorageEntry {
-                    key_name: format!("{}::{}", key_name, chunk_id),
-                    payload: chunk,
-                    ..Default::default()
-                },
-            );
-
-            client.update_entry(request).await?;
-
-            offset += chunk_size;
-            chunk_id += 1;
-        }
-
-        let update_request = generate_request(
-            &self.jwt,
-            StorageEntry {
-                key_name: metadata_key_copy,
-                payload: (num_chunks.to_string() + "-unlocked").into_bytes(),
-                ..Default::default()
-            },
-        );
-
-        client.update_entry(update_request).await?;
-
-        Ok(result)
-    }
-
     pub async fn update_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-
+        #[cfg(feature = "magic_mount")]
         if key_name.contains("$") {
             let token = key_name.split("$").last().unwrap();
             if token.eq("chunk") {
@@ -409,7 +255,7 @@ impl CoLink {
 
     pub async fn delete_entry(&self, key_name: &str) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-
+        #[cfg(feature = "magic_mount")]
         if key_name.contains("$") {
             let token = key_name.split("$").last().unwrap();
             if token.eq("chunk") {
