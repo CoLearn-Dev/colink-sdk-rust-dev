@@ -16,8 +16,6 @@ use tonic::{
 };
 use tracing::debug;
 
-
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthContent {
     pub privilege: String,
@@ -183,7 +181,6 @@ impl CoLink {
                 ..Default::default()
             },
         );
-
         let response = client.create_entry(request).await?;
         debug!("RESPONSE={:?}", response);
         Ok(response.get_ref().key_path.clone())
