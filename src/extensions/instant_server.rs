@@ -1,6 +1,8 @@
 use crate::{utils::get_colink_home, CoLink};
 use rand::Rng;
 use std::{
+    fs::File,
+    io::Write,
     path::Path,
     process::{Child, Command, Stdio},
 };
@@ -101,5 +103,31 @@ impl InstantServer {
 
     pub fn get_colink(&self) -> CoLink {
         CoLink::new(&format!("http://127.0.0.1:{}", self.port), &self.host_token)
+    }
+}
+
+pub struct LocalRegistry {
+    _instant_server: InstantServer,
+}
+
+impl Drop for LocalRegistry {
+    fn drop(&mut self) {
+        let colink_home = get_colink_home().unwrap();
+        let registry_file = Path::new(&colink_home).join("registry.conf");
+        std::fs::remove_file(&registry_file).unwrap();
+    }
+}
+
+impl LocalRegistry {
+    pub async fn new() -> Self {
+        let is = InstantServer::new();
+        let colink_home = get_colink_home().unwrap();
+        let registry_file = Path::new(&colink_home).join("registry.conf");
+        let mut file = File::create(&registry_file).unwrap();
+        file.write_all(b"new_registry").unwrap();
+        is.get_colink().switch_to_generated_user().await.unwrap();
+        Self {
+            _instant_server: is,
+        }
     }
 }
