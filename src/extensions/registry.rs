@@ -15,8 +15,10 @@ impl crate::application::CoLink {
         }];
         let mut payload = vec![];
         registries.encode(&mut payload).unwrap();
-        self.run_task("registry", &payload, &participants, false)
+        let task_id = self
+            .run_task("registry", &payload, &participants, false)
             .await?;
+        self.wait_task(&task_id).await?;
         Ok(())
     }
 }
