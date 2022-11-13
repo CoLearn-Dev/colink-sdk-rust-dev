@@ -60,7 +60,7 @@ impl CoLink {
         self
     }
 
-    pub async fn _grpc_connect(&self, address: &str) -> Result<CoLinkClient<Channel>, Error> {
+    async fn _grpc_connect(&self, address: &str) -> Result<CoLinkClient<Channel>, Error> {
         let channel = if self.ca_certificate.is_none() && self.identity.is_none() {
             Channel::builder(address.parse()?).connect().await?
         } else {
