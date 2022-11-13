@@ -41,9 +41,8 @@ impl crate::application::CoLink {
         }
 
         // store the chunk paths in the metadata entry and update metadata
-        return self
-            .update_entry(&metadata_key.clone(), &chunk_paths.join(";").into_bytes())
-            .await;
+        self.update_entry(&metadata_key.clone(), &chunk_paths.join(";").into_bytes())
+            .await
     }
 
     pub(crate) async fn _read_entry_chunk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
@@ -113,14 +112,13 @@ impl crate::application::CoLink {
         }
 
         // update metadata with new chunk paths
-        return self
-            .update_entry(&metadata_key.clone(), &chunk_paths.join(";").into_bytes())
-            .await;
+        self.update_entry(&metadata_key.clone(), &chunk_paths.join(";").into_bytes())
+            .await
     }
 
     #[async_recursion]
     pub(crate) async fn _delete_entry_chunk(&self, key_name: &str) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
-        return self.delete_entry(&metadata_key.clone()).await;
+        self.delete_entry(&metadata_key.clone()).await
     }
 }

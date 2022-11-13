@@ -10,8 +10,8 @@ documentation = "https://docs.rs/colink"
 repository = "https://github.com/CoLearn-Dev/colink-sdk-rust-dev"
 
 [dependencies]
-async-trait = "0.1"
 async-recursion = "1.0.0"
+async-trait = "0.1"
 base64 = "0.13.0"
 chrono = "0.4"
 clap = { version = "4.0", features = ["derive", "env"] }
