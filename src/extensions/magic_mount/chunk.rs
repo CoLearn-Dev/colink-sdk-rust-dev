@@ -11,20 +11,35 @@ impl crate::application::CoLink {
         key_name: &str,
         payload: &[u8],
     ) -> Result<String, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
         let metadata_key = format!("{}::metadata", key_name);
         let metadata_key_copy = metadata_key.clone();
+
+        // check if the metadata key exists and if it does, check if it is locked
+        let response = self.read_entry(&metadata_key).await?;
+        if response.payload.len() > 0 {
+            let metadata = String::from_utf8(response.payload)?;
+            let metadata_parts: Vec<&str> = metadata.split("_").collect();
+            if metadata_parts.len() != 2 {
+                return Err("invalid metadata".into());
+            }
+            if metadata_parts[1].eq("locked") {
+                return Err("entry is locked".into());
+            }
+        }
+
         let result = metadata_key.clone();
         let num_chunks = payload.len() / CHUNK_SIZE + 1;
-        let create_request = generate_request(
-            &self.jwt,
-            StorageEntry {
-                key_name: metadata_key,
-                payload: (num_chunks.to_string() + "-locked").into_bytes(), // simply store the number of chunks in the metadata
-                ..Default::default()
-            },
-        );
-        client.create_entry(create_request).await?;
+
+        self.create_entry(
+            metadata_key,
+            ((0..num_chunks)
+                .map(|i| format!("{}::{}", key_name, i))
+                .collect::<Vec<String>>()
+                .join(",")
+                + "_locked")
+                .into_bytes(),
+        )
+        .await?;
 
         let mut offset = 0;
         let mut chunk_id = 0;
@@ -35,28 +50,23 @@ impl crate::application::CoLink {
                 CHUNK_SIZE as usize
             };
             let chunk = payload[offset..offset + chunk_size].to_vec();
-            let request = generate_request(
-                &self.jwt,
-                StorageEntry {
-                    key_name: format!("{}::{}", key_name, chunk_id),
-                    payload: chunk,
-                    ..Default::default()
-                },
-            );
-            client.create_entry(request).await?;
+            self.create_entry(format!("{}::{}", key_name, chunk_id), chunk)
+                .await?;
             offset += chunk_size;
             chunk_id += 1;
         }
 
-        let update_request = generate_request(
-            &self.jwt,
-            StorageEntry {
-                key_name: metadata_key_copy,
-                payload: (num_chunks.to_string() + "-unlocked").into_bytes(),
-                ..Default::default()
-            },
-        );
-        client.update_entry(update_request).await?;
+        self.update_entry(
+            metadata_key_copy,
+            ((0..num_chunks)
+                .map(|i| format!("{}::{}", key_name, i))
+                .collect::<Vec<String>>()
+                .join(",")
+                + "_unlocked")
+                .into_bytes(),
+        )
+        .await?;
+
         Ok(result)
     }
 
