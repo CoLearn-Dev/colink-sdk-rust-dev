@@ -161,12 +161,8 @@ impl CoLink {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         #[cfg(feature = "magic_mount")]
         if key_name.contains("$") {
-            let token = key_name.split("$").last().unwrap();
-            if token.eq("chunk") {
-                let response = self._create_entry_bulk(key_name, payload).await?;
-                return Ok(response);
-            }
-            return Err("invalid storage option".into());
+            let response = _mm_create_entry(&self, key_name, payload).await?;
+            Ok(response)
         }
 
         let request = generate_request(
@@ -198,12 +194,8 @@ impl CoLink {
     pub async fn read_entry(&self, key: &str) -> Result<Vec<u8>, Error> {
         #[cfg(feature = "magic_mount")]
         if key.contains("$") {
-            let token = key.split("$").last().unwrap();
-            if token.eq("chunk") {
-                let response = self._read_entry_bulk(key).await?;
-                return Ok(response);
-            }
-            return Err("invalid storage option".into());
+            let response = _mm_read_entry(&self, key).await?;
+            return Ok(response);
         }
 
         let storage_entry = if key.contains("::") {
@@ -225,12 +217,8 @@ impl CoLink {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         #[cfg(feature = "magic_mount")]
         if key_name.contains("$") {
-            let token = key_name.split("$").last().unwrap();
-            if token.eq("chunk") {
-                let response = self._update_entry_bulk(key_name, payload).await?;
-                return Ok(response);
-            }
-            return Err("invalid storage option".into());
+            let response = _mm_update_entry(&self, key_name, payload).await?;
+            return Ok(response);
         }
 
         let request = generate_request(
@@ -250,17 +238,8 @@ impl CoLink {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         #[cfg(feature = "magic_mount")]
         if key_name.contains("$") {
-            let token = key_name.split("$").last().unwrap();
-            if token.eq("chunk") {
-                let metadata_key = format!("{}::metadata", key_name);
-                let request = generate_request(&self.jwt, StorageEntry {
-                    key_name: metadata_key,
-                    ..Default::default()
-                });
-                let response = client.delete_entry(request).await?;
-                return Ok(response.get_ref().key_path.clone());
-            }
-            return Err("invalid storage option".into());
+            let response = _mm_delete_entry(&self, key_name).await?;
+            return Ok(response);
         }
 
         let request = generate_request(
