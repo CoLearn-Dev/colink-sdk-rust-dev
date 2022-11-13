@@ -4,6 +4,8 @@ mod get_participant_id;
 pub mod instant_server;
 #[cfg(feature = "extensions")]
 mod lock;
+#[cfg(feature = "magic_mount")]
+mod magic_mount;
 #[cfg(feature = "policy_module")]
 pub mod policy_module;
 #[cfg(feature = "extensions")]
@@ -18,7 +20,5 @@ mod switch_to_generated_user;
 mod variable_transfer;
 #[cfg(feature = "extensions")]
 mod wait_task;
-#[cfg(feature = "magic_mount")]
-mod magic_mount;
 #[cfg(feature = "extensions")]
 mod wait_user_init;
