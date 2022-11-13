@@ -1,7 +1,7 @@
 use crate::colink_proto::*;
 use async_recursion::async_recursion;
 
-const CHUNK_SIZE: usize = 1 * 1024 * 1024; // use 1MB chunks
+const CHUNK_SIZE: usize = 1024 * 1024; // use 1MB chunks
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -26,10 +26,10 @@ impl crate::application::CoLink {
         let mut chunk_id = 0;
         let mut chunk_paths = Vec::new();
         while offset < payload.len() {
-            let chunk_size = if offset + CHUNK_SIZE as usize > payload.len() {
+            let chunk_size = if offset + CHUNK_SIZE > payload.len() {
                 payload.len() - offset
             } else {
-                CHUNK_SIZE as usize
+                CHUNK_SIZE
             };
             let chunk = payload[offset..offset + chunk_size].to_vec();
             let response = self
@@ -49,7 +49,7 @@ impl crate::application::CoLink {
     pub(crate) async fn _read_entry_chunk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         let metadata_response = self
-            .read_entries(&vec![StorageEntry {
+            .read_entries(&[StorageEntry {
                 key_name: metadata_key.clone(),
                 ..Default::default()
             }])
@@ -66,7 +66,7 @@ impl crate::application::CoLink {
         let mut payload = Vec::new();
         for chunk in chunks {
             let response = self
-                .read_entries(&vec![StorageEntry {
+                .read_entries(&[StorageEntry {
                     key_path: chunk.to_string(),
                     ..Default::default()
                 }])
@@ -96,15 +96,15 @@ impl crate::application::CoLink {
         let mut chunk_id = 0;
         let mut chunk_paths = Vec::new();
         while offset < payload.len() {
-            let chunk_size = if offset + CHUNK_SIZE as usize > payload.len() {
+            let chunk_size = if offset + CHUNK_SIZE > payload.len() {
                 payload.len() - offset
             } else {
-                CHUNK_SIZE as usize
+                CHUNK_SIZE
             };
             let response = self
                 .update_entry(
                     &format!("{}:{}", key_name, chunk_id),
-                    &payload[offset..offset + chunk_size].to_vec(),
+                    &payload[offset..offset + chunk_size],
                 )
                 .await?;
             chunk_paths.push(response);
