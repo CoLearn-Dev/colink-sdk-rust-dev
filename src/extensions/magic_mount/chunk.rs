@@ -1,4 +1,3 @@
-use crate::colink_proto::*;
 use async_recursion::async_recursion;
 
 const CHUNK_SIZE: usize = 1024 * 1024; // use 1MB chunks
@@ -31,9 +30,11 @@ impl crate::application::CoLink {
             } else {
                 CHUNK_SIZE
             };
-            let chunk = payload[offset..offset + chunk_size].to_vec();
             let response = self
-                .create_entry(&format!("{}{}", key_name, chunk_id), &chunk)
+                .create_entry(
+                    &format!("{}:{}", key_name, chunk_id),
+                    &payload[offset..offset + chunk_size],
+                )
                 .await?;
             chunk_paths.push(response);
             offset += chunk_size;
@@ -45,18 +46,14 @@ impl crate::application::CoLink {
             .await
     }
 
+    #[async_recursion]
     pub(crate) async fn _read_entry_chunk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
-        let metadata_response = self
-            .read_entries(&[StorageEntry {
-                key_name: metadata_key.clone(),
-                ..Default::default()
-            }])
-            .await?;
+        let metadata_response = self.read_entry(&metadata_key.clone()).await?;
 
         // check if the metadata is locked
-        let payload_string = String::from_utf8(metadata_response[0].payload.clone())?;
-        if payload_string.ends_with("locked") {
+        let payload_string = String::from_utf8(metadata_response.clone())?;
+        if payload_string == "creation-in-progress-locked" {
             return Err("Creation in progress".into());
         }
 
@@ -64,15 +61,10 @@ impl crate::application::CoLink {
         let chunks = payload_string.split(';').collect::<Vec<&str>>();
         let mut payload = Vec::new();
         for chunk in chunks {
-            let response = self
-                .read_entries(&[StorageEntry {
-                    key_path: chunk.to_string(),
-                    ..Default::default()
-                }])
-                .await?;
-            payload.push(response[0].key_path.clone());
+            let response = self.read_entry(&format!("{}:{}", key_name, chunk)).await?;
+            payload.push(response[0].clone());
         }
-        Ok(payload.join(";").into_bytes())
+        Ok(payload)
     }
 
     #[async_recursion]
@@ -86,7 +78,7 @@ impl crate::application::CoLink {
         // check if the metadata is locked
         let response = self.read_entry(&metadata_key.clone()).await?;
         let payload_string = String::from_utf8(response.clone())?;
-        if payload_string.ends_with("locked") {
+        if payload_string == "creation-in-progress-locked" {
             return Err("Creation in progress".into());
         }
 
