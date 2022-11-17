@@ -261,7 +261,7 @@ pub fn _protocol_start(
                         }
                     }
                     let st = rand::thread_rng().gen_range(32..64);
-                    tokio::time::sleep(tokio::time::Duration::from_millis(st)).await;
+                    tokio::time::sleep(tokio::time::Duration::from_secs(st)).await;
                 }
                 Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
             })?;
