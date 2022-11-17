@@ -58,6 +58,16 @@ impl InstantServer {
             .join("instant_servers")
             .join(instant_server_id.clone());
         std::fs::create_dir_all(&working_dir).unwrap();
+        let mq_amqp = if std::env::var("COLINK_SERVER_MQ_AMQP").is_ok() {
+            std::env::var("COLINK_SERVER_MQ_AMQP").unwrap()
+        } else {
+            "amqp://guest:guest@localhost:5672".to_string()
+        };
+        let mq_api = if std::env::var("COLINK_SERVER_MQ_API").is_ok() {
+            std::env::var("COLINK_SERVER_MQ_API").unwrap()
+        } else {
+            "http://guest:guest@localhost:15672/api".to_string()
+        };
         let child = Command::new(program)
             .args([
                 "--address",
@@ -65,9 +75,9 @@ impl InstantServer {
                 "--port",
                 &port.to_string(),
                 "--mq-amqp",
-                "amqp://guest:guest@localhost:5672",
+                &mq_amqp,
                 "--mq-api",
-                "http://guest:guest@localhost:15672/api",
+                &mq_api,
                 "--mq-prefix",
                 &format!("colink-instant-server-{}", port),
                 "--core-uri",
