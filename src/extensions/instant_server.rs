@@ -46,8 +46,8 @@ impl InstantServer {
             Command::new("bash")
                 .arg("-c")
                 .arg("bash -c \"$(curl -fsSL https://raw.githubusercontent.com/CoLearn-Dev/colinkctl/main/install_colink.sh)\"")
-                .env("SERVER_ONLY", "true")
-                .env("SILENT_MODE", "true")
+                .env("COLINK_INSTALL_SERVER_ONLY", "true")
+                .env("COLINK_INSTALL_SILENT", "true")
                 .status()
                 .unwrap();
         }

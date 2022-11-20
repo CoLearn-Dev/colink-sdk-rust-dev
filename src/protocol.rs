@@ -159,7 +159,7 @@ impl CoLinkProtocol {
 pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
-    disable_auto_stop: bool,
+    keep_alive_when_disconnect: bool,
 ) -> Result<(), Error> {
     let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
     let mut protocols = HashSet::new();
@@ -237,7 +237,7 @@ pub fn _protocol_start(
                 });
         }));
     }
-    if disable_auto_stop {
+    if keep_alive_when_disconnect {
         for thread in threads {
             thread.join().unwrap();
         }
@@ -292,9 +292,9 @@ pub struct CommandLineArgs {
     #[arg(long, env = "COLINK_CLIENT_KEY")]
     pub key: Option<String>,
 
-    /// Disable automatically stop.
-    #[arg(long, env = "COLINK_DISABLE_AUTO_STOP")]
-    pub disable_auto_stop: bool,
+    /// Keep alive when disconnect.
+    #[arg(long, env = "COLINK_KEEP_ALIVE_WHEN_DISCONNECT")]
+    pub keep_alive_when_disconnect: bool,
 }
 
 pub fn _colink_parse_args() -> (CoLink, bool) {
@@ -305,7 +305,7 @@ pub fn _colink_parse_args() -> (CoLink, bool) {
         ca,
         cert,
         key,
-        disable_auto_stop,
+        keep_alive_when_disconnect,
     } = CommandLineArgs::parse();
     let mut cl = CoLink::new(&addr, &jwt);
     if let Some(ca) = ca {
@@ -314,14 +314,14 @@ pub fn _colink_parse_args() -> (CoLink, bool) {
     if let (Some(cert), Some(key)) = (cert, key) {
         cl = cl.identity(&cert, &key);
     }
-    (cl, disable_auto_stop)
+    (cl, keep_alive_when_disconnect)
 }
 
 #[macro_export]
 macro_rules! protocol_start {
     ( $( $x:expr ),* ) => {
         fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            let (cl, disable_auto_stop) = colink::_colink_parse_args();
+            let (cl, keep_alive_when_disconnect) = colink::_colink_parse_args();
 
             let mut user_funcs: std::collections::HashMap<
                 String,
@@ -331,7 +331,7 @@ macro_rules! protocol_start {
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
 
-            colink::_protocol_start(cl, user_funcs, disable_auto_stop)?;
+            colink::_protocol_start(cl, user_funcs, keep_alive_when_disconnect)?;
 
             Ok(())
         }
