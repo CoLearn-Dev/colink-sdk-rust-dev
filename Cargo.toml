@@ -34,11 +34,11 @@ prost-build = "0.10"
 tonic-build = "0.7"
 
 [features]
-default = ["extensions", "remote_storage", "variable_transfer", "registry", "policy_module", "instant_server", "magic_mount"]
+default = ["extensions", "remote_storage", "variable_transfer", "registry", "policy_module", "instant_server", "storage_macro"]
 extensions = []
 remote_storage = ["extensions"]
 variable_transfer = ["extensions", "remote_storage"]
 registry = []
 policy_module = []
 instant_server = []
-magic_mount = []
+storage_macro = []

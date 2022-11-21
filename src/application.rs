@@ -159,9 +159,9 @@ impl CoLink {
 
     pub async fn create_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-        #[cfg(feature = "magic_mount")]
+        #[cfg(feature = "storage_macro")]
         if key_name.contains('$') {
-            return self._mm_create_entry(key_name, payload).await;
+            return self._sm_create_entry(key_name, payload).await;
         }
 
         let request = generate_request(
@@ -191,9 +191,9 @@ impl CoLink {
     }
 
     pub async fn read_entry(&self, key: &str) -> Result<Vec<u8>, Error> {
-        #[cfg(feature = "magic_mount")]
+        #[cfg(feature = "storage_macro")]
         if key.contains('$') {
-            return self._mm_read_entry(key).await;
+            return self._sm_read_entry(key).await;
         }
 
         let storage_entry = if key.contains("::") {
@@ -213,9 +213,9 @@ impl CoLink {
 
     pub async fn update_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-        #[cfg(feature = "magic_mount")]
+        #[cfg(feature = "storage_macro")]
         if key_name.contains('$') {
-            return self._mm_update_entry(key_name, payload).await;
+            return self._sm_update_entry(key_name, payload).await;
         }
 
         let request = generate_request(
@@ -233,9 +233,9 @@ impl CoLink {
 
     pub async fn delete_entry(&self, key_name: &str) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-        #[cfg(feature = "magic_mount")]
+        #[cfg(feature = "storage_macro")]
         if key_name.contains('$') {
-            return self._mm_delete_entry(key_name).await;
+            return self._sm_delete_entry(key_name).await;
         }
 
         let request = generate_request(

@@ -3,7 +3,7 @@ mod chunk;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
-    pub(crate) async fn _mm_create_entry(
+    pub(crate) async fn _sm_create_entry(
         &self,
         key_name: &str,
         payload: &[u8],
@@ -17,7 +17,7 @@ impl crate::application::CoLink {
         Err("invalid storage option".into())
     }
 
-    pub(crate) async fn _mm_read_entry(&self, key_name: &str) -> Result<Vec<u8>, Error> {
+    pub(crate) async fn _sm_read_entry(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let split_key = key_name.split('$').collect::<Vec<&str>>();
         let token = split_key[split_key.len() - 1];
         let key_name = split_key[0];
@@ -27,7 +27,7 @@ impl crate::application::CoLink {
         Err("invalid storage option".into())
     }
 
-    pub(crate) async fn _mm_update_entry(
+    pub(crate) async fn _sm_update_entry(
         &self,
         key_name: &str,
         payload: &[u8],
@@ -41,7 +41,7 @@ impl crate::application::CoLink {
         Err("invalid storage option".into())
     }
 
-    pub(crate) async fn _mm_delete_entry(&self, key_name: &str) -> Result<String, Error> {
+    pub(crate) async fn _sm_delete_entry(&self, key_name: &str) -> Result<String, Error> {
         let split_key = key_name.split('$').collect::<Vec<&str>>();
         let token = split_key[split_key.len() - 1];
         let key_name = split_key[0];
