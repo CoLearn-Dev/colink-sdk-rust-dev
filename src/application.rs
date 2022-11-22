@@ -15,6 +15,7 @@ use tonic::{
     Status,
 };
 use tracing::debug;
+use tracing_subscriber::fmt::format;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthContent {
@@ -159,9 +160,15 @@ impl CoLink {
 
     pub async fn create_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-        #[cfg(feature = "storage_macro")]
         if key_name.contains('$') {
+            #[cfg(feature = "storage_macro")]
             return self._sm_create_entry(key_name, payload).await;
+            #[cfg(not(feature = "storage_macro"))]
+            return Err(format!(
+                "Storage Macro feature not enabled, but found $ symbol in key name: {}",
+                key_name
+            )
+            .into());
         }
 
         let request = generate_request(
@@ -191,9 +198,15 @@ impl CoLink {
     }
 
     pub async fn read_entry(&self, key: &str) -> Result<Vec<u8>, Error> {
-        #[cfg(feature = "storage_macro")]
         if key.contains('$') {
+            #[cfg(feature = "storage_macro")]
             return self._sm_read_entry(key).await;
+            #[cfg(not(feature = "storage_macro"))]
+            return Err(format!(
+                "Storage Macro feature not enabled, but found $ symbol in key name: {}",
+                key
+            )
+            .into());
         }
 
         let storage_entry = if key.contains("::") {
@@ -213,9 +226,15 @@ impl CoLink {
 
     pub async fn update_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-        #[cfg(feature = "storage_macro")]
         if key_name.contains('$') {
+            #[cfg(feature = "storage_macro")]
             return self._sm_update_entry(key_name, payload).await;
+            #[cfg(not(feature = "storage_macro"))]
+            return Err(format!(
+                "Storage Macro feature not enabled, but found $ symbol in key name: {}",
+                key_name
+            )
+            .into());
         }
 
         let request = generate_request(
@@ -233,9 +252,15 @@ impl CoLink {
 
     pub async fn delete_entry(&self, key_name: &str) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
-        #[cfg(feature = "storage_macro")]
         if key_name.contains('$') {
+            #[cfg(feature = "storage_macro")]
             return self._sm_delete_entry(key_name).await;
+            #[cfg(not(feature = "storage_macro"))]
+            return Err(format!(
+                "Storage Macro feature not enabled, but found $ symbol in key name: {}",
+                key_name
+            )
+            .into());
         }
 
         let request = generate_request(
