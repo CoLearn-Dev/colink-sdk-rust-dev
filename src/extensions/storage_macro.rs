@@ -8,7 +8,7 @@ impl crate::application::CoLink {
         let mut macro_type = String::new();
         for s in split_key.iter().rev() {
             if s.contains('$') {
-                macro_type = s.replace("$", "");
+                macro_type = s.replace('$', "");
                 break;
             }
         }
