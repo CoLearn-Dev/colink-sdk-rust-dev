@@ -6,21 +6,7 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
     #[async_recursion]
-    pub(crate) async fn _create_entry_chunk(
-        &self,
-        key_name: &str,
-        payload: &[u8],
-    ) -> Result<String, Error> {
-        let metadata_key = format!("{}:chunk_metadata", key_name);
-
-        // lock the metadata entry to prevent simultaneous writes
-        self.create_entry(
-            &metadata_key.clone(),
-            &("creation-in-progress-locked".to_string().into_bytes()),
-        )
-        .await?;
-
-        // create the chunks and store them
+    async fn _store_chunks(&self, payload: &[u8], key_name: &str) -> Result<Vec<String>, Error> {
         let mut offset = 0;
         let mut chunk_id = 0;
         let mut chunk_paths = Vec::new();
@@ -40,6 +26,22 @@ impl crate::application::CoLink {
             offset += chunk_size;
             chunk_id += 1;
         }
+        Ok(chunk_paths)
+    }
+
+    #[async_recursion]
+    pub(crate) async fn _create_entry_chunk(
+        &self,
+        key_name: &str,
+        payload: &[u8],
+    ) -> Result<String, Error> {
+        let metadata_key = format!("{}:chunk_metadata", key_name);
+
+        // lock the metadata entry to prevent simultaneous writes
+        let lock_token = self.lock(&metadata_key.clone()).await?;
+
+        // create the chunks and store them
+        let chunk_paths = self._store_chunks(payload, key_name).await?;
 
         // make sure that the chunk paths are smaller than the maximum entry size
         let chunk_paths_string = chunk_paths.join(";");
@@ -52,8 +54,11 @@ impl crate::application::CoLink {
         }
 
         // store the chunk paths in the metadata entry and update metadata
-        self.update_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
-            .await
+        let response = self
+            .update_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
+            .await?;
+        self.unlock(lock_token).await?;
+        Ok(response)
     }
 
     #[async_recursion]
@@ -93,25 +98,7 @@ impl crate::application::CoLink {
         }
 
         // split payload into chunks and update the chunks
-        let mut offset = 0;
-        let mut chunk_id = 0;
-        let mut chunk_paths = Vec::new();
-        while offset < payload.len() {
-            let chunk_size = if offset + CHUNK_SIZE > payload.len() {
-                payload.len() - offset
-            } else {
-                CHUNK_SIZE
-            };
-            let response = self
-                .update_entry(
-                    &format!("{}:{}", key_name, chunk_id),
-                    &payload[offset..offset + chunk_size],
-                )
-                .await?;
-            chunk_paths.push(response);
-            offset += chunk_size;
-            chunk_id += 1;
-        }
+        let chunk_paths = self._store_chunks(payload, key_name).await?;
 
         // update metadata with new chunk paths
         self.update_entry(&metadata_key.clone(), &chunk_paths.join(";").into_bytes())
