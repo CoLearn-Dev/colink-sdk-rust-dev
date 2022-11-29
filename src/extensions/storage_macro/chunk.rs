@@ -36,13 +36,23 @@ impl crate::application::CoLink {
                     &payload[offset..offset + chunk_size],
                 )
                 .await?;
-            chunk_paths.push(response);
+            chunk_paths.push(response.split('@').last().unwrap().to_string()); // only store the timestamps
             offset += chunk_size;
             chunk_id += 1;
         }
 
+        // make sure that the chunk paths are smaller than the maximum entry size
+        let chunk_paths_string = chunk_paths.join(";");
+        if chunk_paths_string.len() > CHUNK_SIZE {
+            return Err(format!(
+                "File too large: failed to store {} chunks references in metadata",
+                chunk_paths.len()
+            )
+            .into());
+        }
+
         // store the chunk paths in the metadata entry and update metadata
-        self.update_entry(&metadata_key.clone(), &chunk_paths.join(";").into_bytes())
+        self.update_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
             .await
     }
 
@@ -62,7 +72,7 @@ impl crate::application::CoLink {
         let mut payload = Vec::new();
         for chunk in chunks {
             let response = self.read_entry(&format!("{}:{}", key_name, chunk)).await?;
-            payload.push(response[0].clone());
+            payload.append(&mut response.clone());
         }
         Ok(payload)
     }
