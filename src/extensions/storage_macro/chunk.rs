@@ -70,12 +70,7 @@ impl crate::application::CoLink {
     pub(crate) async fn _read_entry_chunk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         let metadata_response = self.read_entry(&metadata_key.clone()).await?;
-
-        // check if the metadata is locked
         let payload_string = String::from_utf8(metadata_response.clone())?;
-        if payload_string == "creation-in-progress-locked" {
-            return Err("Creation in progress".into());
-        }
 
         // read the chunks into a single vector
         let chunks = payload_string.split(';').collect::<Vec<&str>>();
