@@ -15,7 +15,6 @@ use tonic::{
     Status,
 };
 use tracing::debug;
-use tracing_subscriber::fmt::format;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthContent {
