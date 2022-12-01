@@ -12,14 +12,14 @@ impl crate::application::CoLink {
                 break;
             }
         }
-        let split_by_macro = key_name
-            .split(&format!(":${}:", macro_type))
-            .collect::<Vec<&str>>();
-
+        let macro_type_splitter = format!("{}:", macro_type);
+        let split_by_macro = key_name.split(&macro_type_splitter).collect::<Vec<&str>>();
         (
-            split_by_macro[0].to_string(),
+            split_by_macro[0..split_by_macro.len() - 1]
+                .join(&macro_type_splitter)
+                .to_string(),
             macro_type,
-            split_by_macro[1].to_string(),
+            split_by_macro[split_by_macro.len() - 1].to_string(),
         )
     }
 
@@ -28,13 +28,14 @@ impl crate::application::CoLink {
         key_name: &str,
         payload: &[u8],
     ) -> Result<String, Error> {
-        let parsed_tuple = self._parse_macro(key_name);
-        let macro_type = parsed_tuple.1.as_str();
-        let string_before = parsed_tuple.0.as_str();
-        match macro_type {
-            "chunk" => self._create_entry_chunk(string_before, payload).await,
+        let (string_before, macro_type, _) = self._parse_macro(key_name);
+        match macro_type.as_str() {
+            "chunk" => {
+                self._create_entry_chunk(string_before.as_str(), payload)
+                    .await
+            }
             _ => Err(format!(
-                "invalid storage option, found {} in key name {}",
+                "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
             )
             .into()),
@@ -42,13 +43,11 @@ impl crate::application::CoLink {
     }
 
     pub(crate) async fn _sm_read_entry(&self, key_name: &str) -> Result<Vec<u8>, Error> {
-        let parsed_tuple = self._parse_macro(key_name);
-        let macro_type = parsed_tuple.1.as_str();
-        let string_before = parsed_tuple.0.as_str();
-        match macro_type {
-            "chunk" => self._read_entry_chunk(string_before).await,
+        let (string_before, macro_type, _) = self._parse_macro(key_name);
+        match macro_type.as_str() {
+            "chunk" => self._read_entry_chunk(string_before.as_str()).await,
             _ => Err(format!(
-                "invalid storage option, found {} in key name {}",
+                "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
             )
             .into()),
@@ -60,13 +59,14 @@ impl crate::application::CoLink {
         key_name: &str,
         payload: &[u8],
     ) -> Result<String, Error> {
-        let parsed_tuple = self._parse_macro(key_name);
-        let macro_type = parsed_tuple.1.as_str();
-        let string_before = parsed_tuple.0.as_str();
-        match macro_type {
-            "chunk" => self._update_entry_chunk(string_before, payload).await,
+        let (string_before, macro_type, _) = self._parse_macro(key_name);
+        match macro_type.as_str() {
+            "chunk" => {
+                self._update_entry_chunk(string_before.as_str(), payload)
+                    .await
+            }
             _ => Err(format!(
-                "invalid storage option, found {} in key name {}",
+                "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
             )
             .into()),
@@ -74,13 +74,11 @@ impl crate::application::CoLink {
     }
 
     pub(crate) async fn _sm_delete_entry(&self, key_name: &str) -> Result<String, Error> {
-        let parsed_tuple = self._parse_macro(key_name);
-        let macro_type = parsed_tuple.1.as_str();
-        let string_before = parsed_tuple.0.as_str();
-        match macro_type {
-            "chunk" => self._delete_entry_chunk(string_before).await,
+        let (string_before, macro_type, _) = self._parse_macro(key_name);
+        match macro_type.as_str() {
+            "chunk" => self._delete_entry_chunk(string_before.as_str()).await,
             _ => Err(format!(
-                "invalid storage option, found {} in key name {}",
+                "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
             )
             .into()),

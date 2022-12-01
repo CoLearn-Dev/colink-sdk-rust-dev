@@ -48,19 +48,15 @@ impl crate::application::CoLink {
         payload: &[u8],
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
-
         // lock the metadata entry to prevent simultaneous writes
         let lock_token = self.lock(&metadata_key.clone()).await?;
-
         // create the chunks and store them
         let chunk_paths = self._store_chunks(payload, key_name).await?;
-
         // make sure that the chunk paths are smaller than the maximum entry size
         let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
-
         // store the chunk paths in the metadata entry and update metadata
         let response = self
-            .update_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
+            .create_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
             .await?;
         self.unlock(lock_token).await?;
         Ok(response)
@@ -73,10 +69,12 @@ impl crate::application::CoLink {
         let payload_string = String::from_utf8(metadata_response.clone())?;
 
         // read the chunks into a single vector
-        let chunks = payload_string.split(';').collect::<Vec<&str>>();
+        let chunks_paths = payload_string.split(';').collect::<Vec<&str>>();
         let mut payload = Vec::new();
-        for chunk in chunks {
-            let response = self.read_entry(&format!("{}:{}", key_name, chunk)).await?;
+        for (i, timestamp) in chunks_paths.iter().enumerate() {
+            let response = self
+                .read_entry(&format!("{}:{}@{}", key_name, i, timestamp))
+                .await?;
             payload.append(&mut response.clone());
         }
         Ok(payload)
@@ -89,16 +87,12 @@ impl crate::application::CoLink {
         payload: &[u8],
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
-
         // lock the metadata entry to prevent simultaneous writes
         let lock_token = self.lock(&metadata_key.clone()).await?;
-
         // split payload into chunks and update the chunks
         let chunk_paths = self._store_chunks(payload, key_name).await?;
-
         // make sure that the chunk paths are smaller than the maximum entry size
         let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
-
         // update the metadata entry
         let response = self
             .update_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
