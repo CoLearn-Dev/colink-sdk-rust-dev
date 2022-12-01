@@ -1,5 +1,5 @@
 #[cfg(feature = "extensions")]
-mod get_participant_id;
+mod get_participant_index;
 #[cfg(feature = "instant_server")]
 pub mod instant_server;
 #[cfg(feature = "extensions")]
