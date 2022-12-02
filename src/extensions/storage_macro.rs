@@ -15,9 +15,7 @@ impl crate::application::CoLink {
         let macro_type_splitter = format!("{}:", macro_type);
         let split_by_macro = key_name.split(&macro_type_splitter).collect::<Vec<&str>>();
         (
-            split_by_macro[0..split_by_macro.len() - 1]
-                .join(&macro_type_splitter)
-                .to_string(),
+            split_by_macro[0..split_by_macro.len() - 1].join(&macro_type_splitter),
             macro_type,
             split_by_macro[split_by_macro.len() - 1].to_string(),
         )
