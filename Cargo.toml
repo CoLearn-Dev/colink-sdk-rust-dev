@@ -1,6 +1,6 @@
 [package]
 name = "colink"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 description = "CoLink Rust SDK"
 license = "MIT"
@@ -10,6 +10,7 @@ documentation = "https://docs.rs/colink"
 repository = "https://github.com/CoLearn-Dev/colink-sdk-rust-dev"
 
 [dependencies]
+async-recursion = "1.0.0"
 async-trait = "0.1"
 base64 = "0.13.0"
 chrono = "0.4"
@@ -33,10 +34,11 @@ prost-build = "0.10"
 tonic-build = "0.7"
 
 [features]
-default = ["extensions", "remote_storage", "variable_transfer", "registry", "policy_module", "instant_server"]
+default = ["extensions", "remote_storage", "variable_transfer", "registry", "policy_module", "instant_server", "storage_macro"]
 extensions = []
 remote_storage = ["extensions"]
 variable_transfer = ["extensions", "remote_storage"]
 registry = []
 policy_module = []
 instant_server = []
+storage_macro = []

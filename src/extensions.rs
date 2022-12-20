@@ -12,6 +12,8 @@ mod read_or_wait;
 pub mod registry;
 #[cfg(feature = "remote_storage")]
 mod remote_storage;
+#[cfg(feature = "storage_macro")]
+mod storage_macro;
 #[cfg(feature = "extensions")]
 mod switch_to_generated_user;
 #[cfg(feature = "variable_transfer")]
