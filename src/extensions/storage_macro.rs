@@ -8,16 +8,20 @@ impl crate::application::CoLink {
         let mut macro_type = String::new();
         for s in split_key.iter().rev() {
             if s.contains('$') {
-                macro_type = s.replace('$', "");
+                macro_type = s.to_string();
                 break;
             }
         }
-        let macro_type_splitter = format!("{}:", macro_type);
+        let macro_type_splitter = format!(":{}", macro_type);
         let split_by_macro = key_name.split(&macro_type_splitter).collect::<Vec<&str>>();
+        let mut string_after = split_by_macro[split_by_macro.len() - 1].to_string();
+        if string_after.starts_with(':') {
+            string_after = string_after[1..].to_string();
+        }
         (
-            split_by_macro[0..split_by_macro.len() - 1].join(&macro_type_splitter),
-            macro_type,
-            split_by_macro[split_by_macro.len() - 1].to_string(),
+            split_by_macro[0..(split_by_macro.len() - 1)].join(&macro_type_splitter),
+            macro_type.replace('$', ""),
+            string_after,
         )
     }
 

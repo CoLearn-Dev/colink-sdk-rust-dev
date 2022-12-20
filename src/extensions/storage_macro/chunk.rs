@@ -1,3 +1,4 @@
+use crate::decode_jwt_without_validation;
 use async_recursion::async_recursion;
 
 const CHUNK_SIZE: usize = 1024 * 1024; // use 1MB chunks
@@ -17,7 +18,7 @@ impl crate::application::CoLink {
                 CHUNK_SIZE
             };
             let response = self
-                .create_entry(
+                .update_entry(
                     &format!("{}:{}", key_name, chunk_id),
                     &payload[offset..offset + chunk_size],
                 )
@@ -67,13 +68,14 @@ impl crate::application::CoLink {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         let metadata_response = self.read_entry(&metadata_key.clone()).await?;
         let payload_string = String::from_utf8(metadata_response.clone())?;
+        let user_id = decode_jwt_without_validation(&self.jwt).unwrap().user_id;
 
         // read the chunks into a single vector
         let chunks_paths = payload_string.split(';').collect::<Vec<&str>>();
         let mut payload = Vec::new();
         for (i, timestamp) in chunks_paths.iter().enumerate() {
             let response = self
-                .read_entry(&format!("{}:{}@{}", key_name, i, timestamp))
+                .read_entry(&format!("{}::{}:{}@{}", user_id, key_name, i, timestamp))
                 .await?;
             payload.append(&mut response.clone());
         }
