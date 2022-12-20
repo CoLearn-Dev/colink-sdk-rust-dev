@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let addr = &args[0];
     let jwt = &args[1];
     let length = if args.len() > 2 {
-        args[2].parse::<usize>().unwrap() as usize
+        args[2].parse::<usize>().unwrap()
     } else {
         5e6 as usize // default to 5 * 10^6 bytes
     };
