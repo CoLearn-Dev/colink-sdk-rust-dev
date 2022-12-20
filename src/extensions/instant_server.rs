@@ -28,7 +28,7 @@ impl Drop for InstantServer {
         let working_dir = Path::new(&colink_home)
             .join("instant_servers")
             .join(self.id.clone());
-        std::fs::remove_dir_all(&working_dir).unwrap();
+        std::fs::remove_dir_all(working_dir).unwrap();
     }
 }
 
@@ -53,7 +53,7 @@ impl InstantServer {
         }
         let instant_server_id = uuid::Uuid::new_v4().to_string();
         let mut port = rand::thread_rng().gen_range(10000..20000);
-        while std::net::TcpStream::connect(&format!("127.0.0.1:{}", port)).is_ok() {
+        while std::net::TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
             port = rand::thread_rng().gen_range(10000..20000);
         }
         let working_dir = Path::new(&colink_home)
@@ -94,7 +94,7 @@ impl InstantServer {
             .unwrap();
         loop {
             if std::fs::metadata(working_dir.join("host_token.txt")).is_ok()
-                && std::net::TcpStream::connect(&format!("127.0.0.1:{}", port)).is_ok()
+                && std::net::TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok()
             {
                 break;
             }
@@ -125,7 +125,7 @@ impl Drop for InstantRegistry {
     fn drop(&mut self) {
         let colink_home = get_colink_home().unwrap();
         let registry_file = Path::new(&colink_home).join("reg_config");
-        std::fs::remove_file(&registry_file).unwrap();
+        std::fs::remove_file(registry_file).unwrap();
     }
 }
 
