@@ -9,7 +9,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let args = env::args().skip(1).collect::<Vec<_>>();
     let addr = &args[0];
     let jwt = &args[1];
-
     // check if user specified the number of chunks to create
     let length = if args.len() > 2 {
         args[2].parse::<usize>().unwrap() * CHUNK_SIZE as usize
@@ -18,7 +17,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     };
     let user_id = decode_jwt_without_validation(jwt).unwrap().user_id;
     println!("user_id: {}", user_id);
-
     let cl = CoLink::new(addr, jwt);
     let key_name = "storage_macro_demo_3:$chunk";
     let payload = rand::thread_rng()
