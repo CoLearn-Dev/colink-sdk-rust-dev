@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let user_id = decode_jwt_without_validation(jwt).unwrap().user_id;
     println!("user_id: {}", user_id);
     let cl = CoLink::new(addr, jwt);
-    let key_name = "storage_macro_demo_3:$chunk";
+    let key_name = "storage_macro_demo:$chunk";
     let payload = rand::thread_rng()
         .sample_iter(&rand::distributions::Standard)
         .take(length)
