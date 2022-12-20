@@ -9,11 +9,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let args = env::args().skip(1).collect::<Vec<_>>();
     let addr = &args[0];
     let jwt = &args[1];
-    // check if user specified the number of chunks to create
     let length = if args.len() > 2 {
-        args[2].parse::<usize>().unwrap() * CHUNK_SIZE as usize
+        args[2].parse::<usize>().unwrap() as usize
     } else {
-        5 * CHUNK_SIZE as usize // default to 5MB
+        5e6 as usize // default to 5 * 10^6 bytes
     };
     let user_id = decode_jwt_without_validation(jwt).unwrap().user_id;
     println!("user_id: {}", user_id);
@@ -34,8 +33,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let data = cl.read_entry(key_name).await?;
     assert_eq!(data, payload);
     println!(
-        "Read payload of {}Mb ({} bytes), verified to be same as bytes written",
-        payload.len() / CHUNK_SIZE,
+        "Read payload of {}MB ({} bytes), verified to be same as bytes written",
+        payload.len() as f32 / CHUNK_SIZE as f32,
         payload.len()
     );
 
@@ -53,8 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let data = cl.read_entry(key_name).await?;
     assert_eq!(data, new_payload);
     println!(
-        "Read payload of {}Mb ({} bytes), verified to be same as the updated payload bytes",
-        new_payload.len() / CHUNK_SIZE,
+        "Read payload of {}MB ({} bytes), verified to be same as the updated payload bytes",
+        new_payload.len() as f32 / CHUNK_SIZE as f32,
         new_payload.len()
     );
 
