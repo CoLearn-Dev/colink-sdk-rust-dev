@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     let data = cl.read_entry(key_name).await?;
     assert_eq!(data, new_payload);
     println!(
-        "Read payload of {} Mb ({} bytes), verified to be same as the updated payload bytes",
+        "Read payload of {}Mb ({} bytes), verified to be same as the updated payload bytes",
         new_payload.len() / CHUNK_SIZE,
         new_payload.len()
     );
@@ -61,6 +61,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     // delete
     println!("Deleting entry...");
     cl.delete_entry(key_name).await?;
-
     Ok(())
 }
