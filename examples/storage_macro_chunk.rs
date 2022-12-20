@@ -27,7 +27,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     // read
     println!("Reading entry...");
     let data = cl.read_entry(key_name).await?;
-    println!("{}", String::from_utf8_lossy(&data));
+    assert_eq!(data, msg.as_bytes());
+    println!(
+        "Read payload bytes of length {}, verified to be same as bytes written",
+        msg.as_bytes().len()
+    );
 
     // update
     println!("Updating entry...");
@@ -38,7 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
     // read again to verify
     println!("Reading entry again...");
     let data = cl.read_entry(key_name).await?;
-    println!("{}", String::from_utf8_lossy(&data));
+    assert_eq!(data, new_msg.as_bytes());
+    println!(
+        "Read payload bytes of length {}, verified to be same as bytes updated",
+        new_msg.as_bytes().len()
+    );
 
     // delete
     println!("Deleting entry...");
