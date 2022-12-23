@@ -31,14 +31,21 @@ pub struct CoLinkProtocol {
     protocol_and_role: String,
     cl: CoLink,
     user_func: Box<dyn ProtocolEntry>,
+    vt_public_addr: Option<String>,
 }
 
 impl CoLinkProtocol {
-    pub fn new(protocol_and_role: &str, cl: CoLink, user_func: Box<dyn ProtocolEntry>) -> Self {
+    pub fn new(
+        protocol_and_role: &str,
+        cl: CoLink,
+        user_func: Box<dyn ProtocolEntry>,
+        vt_public_addr: Option<String>,
+    ) -> Self {
         Self {
             protocol_and_role: protocol_and_role.to_string(),
             cl,
             user_func,
+            vt_public_addr,
         }
     }
 
@@ -134,6 +141,15 @@ impl CoLinkProtocol {
                             // begin user func
                             let mut cl = self.cl.clone();
                             cl.set_task_id(&task.task_id);
+                            #[cfg(feature = "variable_transfer")]
+                            {
+                                cl.vt_p2p = Arc::new(
+                                    crate::extensions::variable_transfer::p2p_inbox::VTP2P {
+                                        my_public_addr: self.vt_public_addr.clone(),
+                                        ..Default::default()
+                                    },
+                                );
+                            }
                             let cl_clone = cl.clone();
                             match self
                                 .user_func
@@ -165,6 +181,7 @@ pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
     keep_alive_when_disconnect: bool,
+    vt_public_addr: Option<String>,
 ) -> Result<(), Error> {
     let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
     let mut protocols = HashSet::new();
@@ -226,13 +243,14 @@ pub fn _protocol_start(
     let mut threads = vec![];
     for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
+        let vt_public_addr = vt_public_addr.clone();
         threads.push(thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    match CoLinkProtocol::new(&protocol_and_role, cl, user_func)
+                    match CoLinkProtocol::new(&protocol_and_role, cl, user_func, vt_public_addr)
                         .start()
                         .await
                     {
@@ -300,9 +318,13 @@ pub struct CommandLineArgs {
     /// Keep alive when disconnect.
     #[arg(long, env = "COLINK_KEEP_ALIVE_WHEN_DISCONNECT")]
     pub keep_alive_when_disconnect: bool,
+
+    /// Public address for the variable transfer inbox.
+    #[arg(long, env = "COLINK_VT_PUBLIC_ADDR")]
+    pub vt_public_addr: Option<String>,
 }
 
-pub fn _colink_parse_args() -> (CoLink, bool) {
+pub fn _colink_parse_args() -> (CoLink, bool, Option<String>) {
     tracing_subscriber::fmt::init();
     let CommandLineArgs {
         addr,
@@ -311,6 +333,7 @@ pub fn _colink_parse_args() -> (CoLink, bool) {
         cert,
         key,
         keep_alive_when_disconnect,
+        vt_public_addr,
     } = CommandLineArgs::parse();
     let mut cl = CoLink::new(&addr, &jwt);
     if let Some(ca) = ca {
@@ -319,14 +342,14 @@ pub fn _colink_parse_args() -> (CoLink, bool) {
     if let (Some(cert), Some(key)) = (cert, key) {
         cl = cl.identity(&cert, &key);
     }
-    (cl, keep_alive_when_disconnect)
+    (cl, keep_alive_when_disconnect, vt_public_addr)
 }
 
 #[macro_export]
 macro_rules! protocol_start {
     ( $( $x:expr ),* ) => {
         fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            let (cl, keep_alive_when_disconnect) = colink::_colink_parse_args();
+            let (cl, keep_alive_when_disconnect, vt_public_addr) = colink::_colink_parse_args();
 
             let mut user_funcs: std::collections::HashMap<
                 String,
@@ -336,7 +359,7 @@ macro_rules! protocol_start {
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
 
-            colink::_protocol_start(cl, user_funcs, keep_alive_when_disconnect)?;
+            colink::_protocol_start(cl, user_funcs, keep_alive_when_disconnect, vt_public_addr)?;
 
             Ok(())
         }
@@ -356,7 +379,7 @@ macro_rules! protocol_attach {
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
             std::thread::spawn(|| {
-                colink::_protocol_start(cl, user_funcs, false)?;
+                colink::_protocol_start(cl, user_funcs, false, Some("127.0.0.1".to_string()))?;
                 Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
             });
         }

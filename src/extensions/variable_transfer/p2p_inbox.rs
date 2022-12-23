@@ -50,7 +50,7 @@ impl MyVTInbox {
 }
 
 #[derive(Serialize, Deserialize)]
-struct VTInbox {
+pub(crate) struct VTInbox {
     addr: String,
     vt_jwt: String,
 }
@@ -58,10 +58,10 @@ struct VTInbox {
 #[derive(Default)]
 pub(crate) struct VTP2P {
     pub(crate) my_public_addr: Option<String>,
-    has_created_inbox: Mutex<bool>,
+    pub(crate) has_created_inbox: Mutex<bool>,
     pub(crate) my_inbox: RwLock<Option<MyVTInbox>>,
-    has_configured_inbox: RwLock<HashSet<String>>,
-    remote_inboxes: RwLock<HashMap<String, Option<VTInbox>>>,
+    pub(crate) has_configured_inbox: RwLock<HashSet<String>>,
+    pub(crate) remote_inboxes: RwLock<HashMap<String, Option<VTInbox>>>,
 }
 
 impl crate::application::CoLink {
