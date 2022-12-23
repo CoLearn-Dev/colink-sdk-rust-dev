@@ -9,6 +9,7 @@ use lapin::{
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 use tonic::{
     metadata::MetadataValue,
     transport::{Certificate, Channel, ClientTlsConfig, Identity},
@@ -30,6 +31,8 @@ pub struct CoLink {
     pub(crate) task_id: String,
     pub(crate) ca_certificate: Option<Certificate>,
     pub(crate) identity: Option<Identity>,
+    #[cfg(feature = "variable_transfer")]
+    pub(crate) vt_p2p: Arc<crate::extensions::variable_transfer::p2p_inbox::VTP2P>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -42,6 +45,8 @@ impl CoLink {
             task_id: "".to_string(),
             ca_certificate: None,
             identity: None,
+            #[cfg(feature = "variable_transfer")]
+            vt_p2p: Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2P::default()),
         }
     }
 
