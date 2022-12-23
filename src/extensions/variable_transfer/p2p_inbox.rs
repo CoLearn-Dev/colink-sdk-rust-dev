@@ -10,6 +10,7 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 pub(crate) struct MyVTInbox {
     port: u16,
+    #[allow(clippy::type_complexity)]
     data_map: Arc<RwLock<HashMap<(String, String), Vec<u8>>>>,
     pub(crate) shutdown_channel: tokio::sync::mpsc::Sender<()>,
 }
@@ -78,9 +79,7 @@ impl crate::application::CoLink {
                 .await
                 .contains_key(&receiver.user_id)
             {
-                let inbox = self
-                    ._get_variable_remote_storage("inbox", &receiver)
-                    .await?;
+                let inbox = self._get_variable_remote_storage("inbox", receiver).await?;
                 let inbox: VTInbox = serde_json::from_slice(&inbox)?;
                 let inbox = if inbox.addr.is_empty() {
                     None
@@ -133,7 +132,7 @@ impl crate::application::CoLink {
             .contains(&sender.user_id)
         {
             if self.vt_p2p.my_public_addr.is_some()
-                && *self.vt_p2p.has_created_inbox.lock().await == false
+                && !(*self.vt_p2p.has_created_inbox.lock().await)
             {
                 let mut has_created_inbox = self.vt_p2p.has_created_inbox.lock().await;
                 let my_inbox = MyVTInbox::new();
