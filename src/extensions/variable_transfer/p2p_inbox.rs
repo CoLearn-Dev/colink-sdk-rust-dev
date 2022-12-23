@@ -1,6 +1,6 @@
 use crate::colink_proto::*;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Response, Server};
+use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -8,10 +8,10 @@ use tokio::sync::{Mutex, RwLock};
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
-struct MyVTInbox {
+pub(crate) struct MyVTInbox {
     port: u16,
     data_map: Arc<RwLock<HashMap<(String, String), Vec<u8>>>>,
-    shutdown_channel: tokio::sync::oneshot::Sender<()>,
+    pub(crate) shutdown_channel: tokio::sync::mpsc::Sender<()>,
 }
 
 impl MyVTInbox {
@@ -35,9 +35,9 @@ impl MyVTInbox {
             }
         });
         let server = Server::bind(&addr).serve(service);
-        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
-        let graceful = server.with_graceful_shutdown(async {
-            rx.await.ok();
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+        let graceful = server.with_graceful_shutdown(async move {
+            rx.recv().await;
         });
         tokio::spawn(async { graceful.await });
         Self {
@@ -58,7 +58,7 @@ struct VTInbox {
 pub(crate) struct VTP2P {
     pub(crate) my_public_addr: Option<String>,
     has_created_inbox: Mutex<bool>,
-    my_inbox: RwLock<Option<MyVTInbox>>,
+    pub(crate) my_inbox: RwLock<Option<MyVTInbox>>,
     has_configured_inbox: RwLock<HashSet<String>>,
     remote_inboxes: RwLock<HashMap<String, Option<VTInbox>>>,
 }
@@ -102,7 +102,17 @@ impl crate::application::CoLink {
                 .unwrap()
             {
                 Some(remote_inbox) => {
-                    // send
+                    let req = Request::builder()
+                        .method(Method::POST)
+                        .uri(&remote_inbox.addr)
+                        .header("user_id", self.get_user_id()?)
+                        .header("key", key)
+                        .body(Body::from(payload.to_vec()))?;
+                    let client = Client::new();
+                    let resp = client.request(req).await?;
+                    if resp.status() != StatusCode::OK {
+                        Err(format!("Remote inbox: error {}", resp.status()))?;
+                    }
                 }
                 None => Err("Remote inbox: not available")?,
             }

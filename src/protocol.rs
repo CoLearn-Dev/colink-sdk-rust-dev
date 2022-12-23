@@ -134,6 +134,7 @@ impl CoLinkProtocol {
                             // begin user func
                             let mut cl = self.cl.clone();
                             cl.set_task_id(&task.task_id);
+                            let cl_clone = cl.clone();
                             match self
                                 .user_func
                                 .start(cl, task.protocol_param, task.participants)
@@ -141,6 +142,10 @@ impl CoLinkProtocol {
                             {
                                 Ok(_) => {}
                                 Err(e) => error!("Task {}: {}.", task.task_id, e),
+                            }
+                            if cl_clone.vt_p2p.my_inbox.write().await.is_some() {
+                                let my_inbox = cl_clone.vt_p2p.my_inbox.write().await;
+                                my_inbox.as_ref().unwrap().shutdown_channel.send(()).await?;
                             }
                             // end user func
                             self.cl.finish_task(&task.task_id).await?;

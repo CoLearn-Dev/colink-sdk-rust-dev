@@ -87,6 +87,11 @@ impl CoLink {
 
     pub fn set_task_id(&mut self, task_id: &str) {
         self.task_id = task_id.to_string();
+        #[cfg(feature = "variable_transfer")]
+        {
+            self.vt_p2p =
+                Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2P::default());
+        }
     }
 
     pub fn get_task_id(&self) -> Result<String, String> {
