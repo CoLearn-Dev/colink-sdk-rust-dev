@@ -1,7 +1,8 @@
 use crate::colink_proto::*;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
-use rand::Rng;
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
+use rand::{Rng, RngCore};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -11,13 +12,22 @@ type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 pub(crate) struct MyVTInbox {
     port: u16,
+    jwt_secret: [u8; 32],
     #[allow(clippy::type_complexity)]
     data_map: Arc<RwLock<HashMap<(String, String), Vec<u8>>>>,
     pub(crate) shutdown_channel: tokio::sync::mpsc::Sender<()>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub(crate) struct VTInboxAuthContent {
+    pub user_id: String,
+}
+
 impl MyVTInbox {
     fn new() -> Self {
+        let mut jwt_secret: [u8; 32] = [0; 32];
+        let mut rng = rand::thread_rng();
+        rng.fill_bytes(&mut jwt_secret);
         let mut port = rand::thread_rng().gen_range(10000..30000);
         while std::net::TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
             port = rand::thread_rng().gen_range(10000..30000);
@@ -33,9 +43,30 @@ impl MyVTInbox {
                     async move {
                         let user_id = req.headers().get("user_id").unwrap().to_str()?.to_string(); // TODO unwrap
                         let key = req.headers().get("key").unwrap().to_str()?.to_string();
+                        let token = req.headers().get("token").unwrap().to_str()?.to_string();
+                        let token = match jsonwebtoken::decode::<VTInboxAuthContent>(
+                            &token,
+                            &DecodingKey::from_secret(&jwt_secret),
+                            &Validation {
+                                validate_exp: false,
+                                ..Default::default()
+                            },
+                        ) {
+                            Ok(token) => token,
+                            Err(_) => {
+                                let mut err: Response<Body> = Response::default();
+                                *err.status_mut() = StatusCode::UNAUTHORIZED;
+                                return Ok(err);
+                            }
+                        };
+                        if token.claims.user_id != user_id {
+                            let mut err: Response<Body> = Response::default();
+                            *err.status_mut() = StatusCode::UNAUTHORIZED;
+                            return Ok(err);
+                        }
                         let body = hyper::body::to_bytes(req.into_body()).await?;
                         data.write().await.insert((user_id, key), body.to_vec());
-                        Ok::<_, Error>(Response::new(Body::default()))
+                        Ok::<_, Error>(Response::default())
                     }
                 }))
             }
@@ -48,6 +79,7 @@ impl MyVTInbox {
         tokio::spawn(async { graceful.await });
         Self {
             port,
+            jwt_secret,
             data_map: data_clone,
             shutdown_channel: tx,
         }
@@ -111,6 +143,7 @@ impl crate::application::CoLink {
                         .uri(&remote_inbox.addr)
                         .header("user_id", self.get_user_id()?)
                         .header("key", key)
+                        .header("token", &remote_inbox.vt_jwt)
                         .body(Body::from(payload.to_vec()))?;
                     let client = Client::new();
                     let resp = client.request(req).await?;
@@ -150,13 +183,28 @@ impl crate::application::CoLink {
                     vt_jwt: "".to_string(),
                 }
             } else {
+                let jwt_secret = self
+                    .vt_p2p
+                    .my_inbox
+                    .read()
+                    .await
+                    .as_ref()
+                    .unwrap()
+                    .jwt_secret;
+                let vt_jwt = jsonwebtoken::encode(
+                    &Header::default(),
+                    &VTInboxAuthContent {
+                        user_id: sender.user_id.clone(),
+                    },
+                    &EncodingKey::from_secret(&jwt_secret),
+                )?;
                 VTInbox {
                     addr: format!(
                         "http://{}:{}",
                         self.vt_p2p.my_public_addr.as_ref().unwrap(),
                         self.vt_p2p.my_inbox.read().await.as_ref().unwrap().port
                     ),
-                    vt_jwt: "".to_string(), //TODO
+                    vt_jwt,
                 }
             };
             self._set_variable_remote_storage(
@@ -183,7 +231,7 @@ impl crate::application::CoLink {
             }
             drop(data_map);
             drop(my_inbox);
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // TODO channel
         }
     }
 }
