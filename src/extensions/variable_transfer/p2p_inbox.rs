@@ -75,7 +75,15 @@ impl MyVTInbox {
                     let data = data.clone();
                     let notification_channels = notification_channels.clone();
                     async move {
-                        let user_id = req.headers().get("user_id").unwrap().to_str()?.to_string(); // TODO unwrap
+                        if !req.headers().contains_key("user_id")
+                            || !req.headers().contains_key("key")
+                            || !req.headers().contains_key("token")
+                        {
+                            let mut err: Response<Body> = Response::default();
+                            *err.status_mut() = StatusCode::BAD_REQUEST;
+                            return Ok(err);
+                        }
+                        let user_id = req.headers().get("user_id").unwrap().to_str()?.to_string();
                         let key = req.headers().get("key").unwrap().to_str()?.to_string();
                         let token = req.headers().get("token").unwrap().to_str()?.to_string();
                         // verify jwt
@@ -107,7 +115,7 @@ impl MyVTInbox {
                         let notification_channels = notification_channels.read().await;
                         let nc = notification_channels.get(&(user_id, key));
                         if nc.is_some() {
-                            nc.unwrap().send(()).await.unwrap();
+                            nc.unwrap().send(()).await?;
                         }
                         drop(notification_channels);
                         Ok::<_, Error>(Response::default())
