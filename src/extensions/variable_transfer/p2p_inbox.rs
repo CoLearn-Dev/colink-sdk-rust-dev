@@ -1,6 +1,7 @@
 use crate::colink_proto::*;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -17,7 +18,11 @@ pub(crate) struct MyVTInbox {
 
 impl MyVTInbox {
     fn new() -> Self {
-        let addr = ([0, 0, 0, 0], 12000).into();
+        let mut port = rand::thread_rng().gen_range(10000..30000);
+        while std::net::TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
+            port = rand::thread_rng().gen_range(10000..30000);
+        }
+        let addr = ([0, 0, 0, 0], port).into();
         let data = Arc::new(RwLock::new(HashMap::new()));
         let data_clone = data.clone();
         let service = make_service_fn(move |_| {
@@ -42,7 +47,7 @@ impl MyVTInbox {
         });
         tokio::spawn(async { graceful.await });
         Self {
-            port: 12000,
+            port,
             data_map: data_clone,
             shutdown_channel: tx,
         }
