@@ -183,13 +183,14 @@ impl crate::application::CoLink {
                         .with_no_client_auth();
                     let https = hyper_rustls::HttpsConnectorBuilder::new()
                         .with_tls_config(tls_cfg)
-                        .https_or_http()
+                        .https_only()
+                        .with_server_name("vt-p2p.colink".to_string())
                         .enable_http1()
                         .build();
                     let client: Client<_, hyper::Body> = Client::builder().build(https);
                     let req = Request::builder()
                         .method(Method::POST)
-                        .uri(&remote_inbox.addr) // TODO tls domain
+                        .uri(&remote_inbox.addr)
                         .header("user_id", self.get_user_id()?)
                         .header("key", key)
                         .header("token", &remote_inbox.vt_jwt)
