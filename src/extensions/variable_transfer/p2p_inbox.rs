@@ -1,12 +1,22 @@
 use crate::colink_proto::*;
+use core::task::{Context, Poll};
+use futures_lite::ready;
+use hyper::server::accept::Accept;
+use hyper::server::conn::{AddrIncoming, AddrStream};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Method, Request, Response, Server, StatusCode};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use rand::{Rng, RngCore};
+use rcgen::generate_simple_self_signed;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::{Mutex, RwLock};
+use tokio_rustls::rustls;
+use tokio_rustls::rustls::ServerConfig;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -35,6 +45,19 @@ impl MyVTInbox {
         let addr = ([0, 0, 0, 0], port).into();
         let data = Arc::new(RwLock::new(HashMap::new()));
         let data_clone = data.clone();
+        // tls
+        let (pub_cert, priv_key) = gen_cert();
+        let tls_cfg = Arc::new(
+            rustls::ServerConfig::builder()
+                .with_safe_defaults()
+                .with_no_client_auth()
+                .with_single_cert(
+                    vec![rustls::Certificate(pub_cert)],
+                    rustls::PrivateKey(priv_key),
+                )
+                .unwrap(),
+        );
+        // http server
         let service = make_service_fn(move |_| {
             let data = data.clone();
             async move {
@@ -44,6 +67,7 @@ impl MyVTInbox {
                         let user_id = req.headers().get("user_id").unwrap().to_str()?.to_string(); // TODO unwrap
                         let key = req.headers().get("key").unwrap().to_str()?.to_string();
                         let token = req.headers().get("token").unwrap().to_str()?.to_string();
+                        // verify jwt
                         let token = match jsonwebtoken::decode::<VTInboxAuthContent>(
                             &token,
                             &DecodingKey::from_secret(&jwt_secret),
@@ -64,6 +88,7 @@ impl MyVTInbox {
                             *err.status_mut() = StatusCode::UNAUTHORIZED;
                             return Ok(err);
                         }
+                        // payload
                         let body = hyper::body::to_bytes(req.into_body()).await?;
                         data.write().await.insert((user_id, key), body.to_vec());
                         Ok::<_, Error>(Response::default())
@@ -71,7 +96,8 @@ impl MyVTInbox {
                 }))
             }
         });
-        let server = Server::bind(&addr).serve(service);
+        let incoming = AddrIncoming::bind(&addr).unwrap();
+        let server = Server::builder(TlsAcceptor::new(tls_cfg, incoming)).serve(service);
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let graceful = server.with_graceful_shutdown(async move {
             rx.recv().await;
@@ -84,6 +110,14 @@ impl MyVTInbox {
             shutdown_channel: tx,
         }
     }
+}
+
+fn gen_cert() -> (Vec<u8>, Vec<u8>) {
+    let subject_alt_names: &[_] = &["vt-p2p.colink".to_string()];
+    let cert = generate_simple_self_signed(subject_alt_names).unwrap();
+    let pub_cert = cert.serialize_der().unwrap();
+    let priv_key = cert.serialize_private_key_der();
+    (pub_cert, priv_key)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -235,3 +269,111 @@ impl crate::application::CoLink {
         }
     }
 }
+
+// https://github.com/rustls/hyper-rustls/blob/21c4d3749c5bac74eb934c56f1f92d76e1b88554/examples/server.rs#L70-L173
+// BEGIN hyper-rustls
+enum State {
+    Handshaking(tokio_rustls::Accept<AddrStream>),
+    Streaming(tokio_rustls::server::TlsStream<AddrStream>),
+}
+
+// tokio_rustls::server::TlsStream doesn't expose constructor methods,
+// so we have to TlsAcceptor::accept and handshake to have access to it
+// TlsStream implements AsyncRead/AsyncWrite handshaking tokio_rustls::Accept first
+pub struct TlsStream {
+    state: State,
+}
+
+impl TlsStream {
+    fn new(stream: AddrStream, config: Arc<ServerConfig>) -> TlsStream {
+        let accept = tokio_rustls::TlsAcceptor::from(config).accept(stream);
+        TlsStream {
+            state: State::Handshaking(accept),
+        }
+    }
+}
+
+impl AsyncRead for TlsStream {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &mut ReadBuf,
+    ) -> Poll<std::io::Result<()>> {
+        let pin = self.get_mut();
+        match pin.state {
+            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+                Ok(mut stream) => {
+                    let result = Pin::new(&mut stream).poll_read(cx, buf);
+                    pin.state = State::Streaming(stream);
+                    result
+                }
+                Err(err) => Poll::Ready(Err(err)),
+            },
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for TlsStream {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        let pin = self.get_mut();
+        match pin.state {
+            State::Handshaking(ref mut accept) => match ready!(Pin::new(accept).poll(cx)) {
+                Ok(mut stream) => {
+                    let result = Pin::new(&mut stream).poll_write(cx, buf);
+                    pin.state = State::Streaming(stream);
+                    result
+                }
+                Err(err) => Poll::Ready(Err(err)),
+            },
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.state {
+            State::Handshaking(_) => Poll::Ready(Ok(())),
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.state {
+            State::Handshaking(_) => Poll::Ready(Ok(())),
+            State::Streaming(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
+        }
+    }
+}
+
+pub struct TlsAcceptor {
+    config: Arc<ServerConfig>,
+    incoming: AddrIncoming,
+}
+
+impl TlsAcceptor {
+    pub fn new(config: Arc<ServerConfig>, incoming: AddrIncoming) -> TlsAcceptor {
+        TlsAcceptor { config, incoming }
+    }
+}
+
+impl Accept for TlsAcceptor {
+    type Conn = TlsStream;
+    type Error = std::io::Error;
+
+    fn poll_accept(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Self::Conn, Self::Error>>> {
+        let pin = self.get_mut();
+        match ready!(Pin::new(&mut pin.incoming).poll_accept(cx)) {
+            Some(Ok(sock)) => Poll::Ready(Some(Ok(TlsStream::new(sock, pin.config.clone())))),
+            Some(Err(e)) => Poll::Ready(Some(Err(e))),
+            None => Poll::Ready(None),
+        }
+    }
+}
+// END hyper-rustls
