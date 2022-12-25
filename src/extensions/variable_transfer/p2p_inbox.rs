@@ -27,6 +27,9 @@ pub(crate) struct MyVTInbox {
     #[allow(clippy::type_complexity)]
     data_map: Arc<RwLock<HashMap<(String, String), Vec<u8>>>>,
     pub(crate) shutdown_channel: tokio::sync::mpsc::Sender<()>,
+    #[allow(clippy::type_complexity)]
+    pub(crate) notification_channels:
+        Arc<RwLock<HashMap<(String, String), tokio::sync::mpsc::Sender<()>>>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,6 +49,11 @@ impl MyVTInbox {
         let addr = ([0, 0, 0, 0], port).into();
         let data = Arc::new(RwLock::new(HashMap::new()));
         let data_clone = data.clone();
+        #[allow(clippy::type_complexity)]
+        let notification_channels: Arc<
+            RwLock<HashMap<(String, String), tokio::sync::mpsc::Sender<()>>>,
+        > = Arc::new(RwLock::new(HashMap::new()));
+        let notification_channels_clone = notification_channels.clone();
         // tls
         let (tls_cert, priv_key) = gen_cert();
         let tls_cfg = Arc::new(
@@ -61,9 +69,11 @@ impl MyVTInbox {
         // http server
         let service = make_service_fn(move |_| {
             let data = data.clone();
+            let notification_channels = notification_channels.clone();
             async move {
                 Ok::<_, Error>(service_fn(move |req| {
                     let data = data.clone();
+                    let notification_channels = notification_channels.clone();
                     async move {
                         let user_id = req.headers().get("user_id").unwrap().to_str()?.to_string(); // TODO unwrap
                         let key = req.headers().get("key").unwrap().to_str()?.to_string();
@@ -91,7 +101,15 @@ impl MyVTInbox {
                         }
                         // payload
                         let body = hyper::body::to_bytes(req.into_body()).await?;
-                        data.write().await.insert((user_id, key), body.to_vec());
+                        data.write()
+                            .await
+                            .insert((user_id.clone(), key.clone()), body.to_vec());
+                        let notification_channels = notification_channels.read().await;
+                        let nc = notification_channels.get(&(user_id, key));
+                        if nc.is_some() {
+                            nc.unwrap().send(()).await.unwrap();
+                        }
+                        drop(notification_channels);
                         Ok::<_, Error>(Response::default())
                     }
                 }))
@@ -110,6 +128,7 @@ impl MyVTInbox {
             tls_cert,
             data_map: data_clone,
             shutdown_channel: tx,
+            notification_channels: notification_channels_clone,
         }
     }
 }
@@ -293,8 +312,33 @@ impl crate::application::CoLink {
                 return Ok(data.unwrap().clone());
             }
             drop(data_map);
+            let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+            my_inbox
+                .as_ref()
+                .unwrap()
+                .notification_channels
+                .write()
+                .await
+                .insert((sender.user_id.clone(), key.to_string()), tx);
+            // try again after creating the channel
+            let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
+            let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
+            if data.is_some() {
+                return Ok(data.unwrap().clone());
+            }
+            drop(data_map);
             drop(my_inbox);
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; // TODO channel
+            rx.recv().await;
+            let my_inbox = self.vt_p2p.my_inbox.read().await;
+            let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
+            let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
+            if data.is_some() {
+                return Ok(data.unwrap().clone());
+            } else {
+                Err("Fail to retrieve data from the inbox")?
+            }
+            drop(data_map);
+            drop(my_inbox);
         }
     }
 }
