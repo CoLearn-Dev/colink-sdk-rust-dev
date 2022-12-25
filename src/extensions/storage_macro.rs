@@ -1,4 +1,5 @@
 mod chunk;
+mod redis;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -36,6 +37,10 @@ impl crate::application::CoLink {
                 self._create_entry_chunk(string_before.as_str(), payload)
                     .await
             }
+            "redis" => {
+                self._create_entry_redis(string_before.as_str(), payload)
+                    .await
+            }
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -48,6 +53,7 @@ impl crate::application::CoLink {
         let (string_before, macro_type, _) = self._parse_macro(key_name);
         match macro_type.as_str() {
             "chunk" => self._read_entry_chunk(string_before.as_str()).await,
+            "redis" => self._read_entry_redis(string_before.as_str()).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -67,6 +73,10 @@ impl crate::application::CoLink {
                 self._update_entry_chunk(string_before.as_str(), payload)
                     .await
             }
+            "redis" => {
+                self._update_entry_redis(string_before.as_str(), payload)
+                    .await
+            }
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -79,6 +89,7 @@ impl crate::application::CoLink {
         let (string_before, macro_type, _) = self._parse_macro(key_name);
         match macro_type.as_str() {
             "chunk" => self._delete_entry_chunk(string_before.as_str()).await,
+            "redis" => self._delete_entry_redis(string_before.as_str()).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
