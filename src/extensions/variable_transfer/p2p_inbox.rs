@@ -15,14 +15,15 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::sync::{Mutex, RwLock};
-use tokio_rustls::rustls;
 use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::rustls::{self, RootCertStore};
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 pub(crate) struct MyVTInbox {
     port: u16,
     jwt_secret: [u8; 32],
+    tls_cert: Vec<u8>,
     #[allow(clippy::type_complexity)]
     data_map: Arc<RwLock<HashMap<(String, String), Vec<u8>>>>,
     pub(crate) shutdown_channel: tokio::sync::mpsc::Sender<()>,
@@ -46,13 +47,13 @@ impl MyVTInbox {
         let data = Arc::new(RwLock::new(HashMap::new()));
         let data_clone = data.clone();
         // tls
-        let (pub_cert, priv_key) = gen_cert();
+        let (tls_cert, priv_key) = gen_cert();
         let tls_cfg = Arc::new(
             rustls::ServerConfig::builder()
                 .with_safe_defaults()
                 .with_no_client_auth()
                 .with_single_cert(
-                    vec![rustls::Certificate(pub_cert)],
+                    vec![rustls::Certificate(tls_cert.clone())],
                     rustls::PrivateKey(priv_key),
                 )
                 .unwrap(),
@@ -106,6 +107,7 @@ impl MyVTInbox {
         Self {
             port,
             jwt_secret,
+            tls_cert,
             data_map: data_clone,
             shutdown_channel: tx,
         }
@@ -115,15 +117,16 @@ impl MyVTInbox {
 fn gen_cert() -> (Vec<u8>, Vec<u8>) {
     let subject_alt_names: &[_] = &["vt-p2p.colink".to_string()];
     let cert = generate_simple_self_signed(subject_alt_names).unwrap();
-    let pub_cert = cert.serialize_der().unwrap();
+    let tls_cert = cert.serialize_der().unwrap();
     let priv_key = cert.serialize_private_key_der();
-    (pub_cert, priv_key)
+    (tls_cert, priv_key)
 }
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct VTInbox {
     addr: String,
     vt_jwt: String,
+    tls_cert: Vec<u8>,
 }
 
 #[derive(Default)]
@@ -172,14 +175,25 @@ impl crate::application::CoLink {
                 .unwrap()
             {
                 Some(remote_inbox) => {
+                    let mut roots = RootCertStore::empty();
+                    roots.add_parsable_certificates(&[remote_inbox.tls_cert.clone()]);
+                    let tls_cfg = rustls::ClientConfig::builder()
+                        .with_safe_defaults()
+                        .with_root_certificates(roots)
+                        .with_no_client_auth();
+                    let https = hyper_rustls::HttpsConnectorBuilder::new()
+                        .with_tls_config(tls_cfg)
+                        .https_or_http()
+                        .enable_http1()
+                        .build();
+                    let client: Client<_, hyper::Body> = Client::builder().build(https);
                     let req = Request::builder()
                         .method(Method::POST)
-                        .uri(&remote_inbox.addr)
+                        .uri(&remote_inbox.addr) // TODO tls domain
                         .header("user_id", self.get_user_id()?)
                         .header("key", key)
                         .header("token", &remote_inbox.vt_jwt)
                         .body(Body::from(payload.to_vec()))?;
-                    let client = Client::new();
                     let resp = client.request(req).await?;
                     if resp.status() != StatusCode::OK {
                         Err(format!("Remote inbox: error {}", resp.status()))?;
@@ -196,6 +210,7 @@ impl crate::application::CoLink {
         key: &str,
         sender: &Participant,
     ) -> Result<Vec<u8>, Error> {
+        // send inbox information to the sender by remote_storage
         if !self
             .vt_p2p
             .has_configured_inbox
@@ -203,6 +218,7 @@ impl crate::application::CoLink {
             .await
             .contains(&sender.user_id)
         {
+            // create inbox if it does not exist
             if self.vt_p2p.my_public_addr.is_some()
                 && !(*self.vt_p2p.has_created_inbox.lock().await)
             {
@@ -211,10 +227,12 @@ impl crate::application::CoLink {
                 *self.vt_p2p.my_inbox.write().await = Some(my_inbox);
                 *has_created_inbox = true;
             }
+            // generate vt_inbox information for the sender
             let vt_inbox = if self.vt_p2p.my_public_addr.is_none() {
                 VTInbox {
                     addr: "".to_string(),
                     vt_jwt: "".to_string(),
+                    tls_cert: Vec::new(),
                 }
             } else {
                 let jwt_secret = self
@@ -234,11 +252,20 @@ impl crate::application::CoLink {
                 )?;
                 VTInbox {
                     addr: format!(
-                        "http://{}:{}",
+                        "https://{}:{}",
                         self.vt_p2p.my_public_addr.as_ref().unwrap(),
                         self.vt_p2p.my_inbox.read().await.as_ref().unwrap().port
                     ),
                     vt_jwt,
+                    tls_cert: self
+                        .vt_p2p
+                        .my_inbox
+                        .read()
+                        .await
+                        .as_ref()
+                        .unwrap()
+                        .tls_cert
+                        .clone(),
                 }
             };
             self._set_variable_remote_storage(
@@ -253,6 +280,7 @@ impl crate::application::CoLink {
                 .await
                 .insert(sender.user_id.clone());
         }
+
         if self.vt_p2p.my_public_addr.is_none() {
             Err("Remote inbox: not available")?;
         }

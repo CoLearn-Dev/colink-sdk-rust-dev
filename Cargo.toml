@@ -17,6 +17,7 @@ chrono = "0.4"
 clap = { version = "4.0", features = ["derive", "env"] }
 futures-lite = "1.12"
 hyper = "0.14"
+hyper-rustls = { version = "0.23", optional = true }
 jsonwebtoken = { version = "7.2", optional = true }
 lapin = "2.1"
 prost = "0.10"
@@ -41,7 +42,7 @@ tonic-build = "0.7"
 default = ["extensions", "remote_storage", "variable_transfer", "registry", "policy_module", "instant_server", "storage_macro"]
 extensions = []
 remote_storage = ["extensions"]
-variable_transfer = ["extensions", "remote_storage", "jsonwebtoken", "rcgen", "tokio-rustls"]
+variable_transfer = ["extensions", "remote_storage", "jsonwebtoken", "rcgen", "tokio-rustls", "hyper-rustls"]
 registry = []
 policy_module = []
 instant_server = []
