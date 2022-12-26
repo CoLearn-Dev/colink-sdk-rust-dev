@@ -172,7 +172,8 @@ impl crate::application::CoLink {
         payload: &[u8],
         receivers: &[Participant],
     ) -> Result<(), Error> {
-        for receiver in receivers { // TODO parallel and fallback
+        for receiver in receivers {
+            // TODO parallel and fallback
             if !self
                 .vt_p2p
                 .remote_inboxes
