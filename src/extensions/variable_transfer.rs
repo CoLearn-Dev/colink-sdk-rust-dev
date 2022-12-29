@@ -1,6 +1,7 @@
 use crate::colink_proto::*;
 pub(crate) mod p2p_inbox;
 mod remote_storage;
+mod tls_utils;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -21,7 +22,7 @@ impl crate::application::CoLink {
         {
             return Ok(());
         }
-        self._set_variable_remote_storage(key, payload, receivers)
+        self.set_variable_with_remote_storage(key, payload, receivers)
             .await?;
         Ok(())
     }
@@ -33,7 +34,7 @@ impl crate::application::CoLink {
         if let Ok(res) = self._get_variable_p2p(key, sender).await {
             return Ok(res);
         }
-        let res = self._get_variable_remote_storage(key, sender).await?;
+        let res = self.get_variable_with_remote_storage(key, sender).await?;
         Ok(res)
     }
 }

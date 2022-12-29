@@ -8,7 +8,7 @@ mod colink_remote_storage {
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
-    pub(crate) async fn _set_variable_remote_storage(
+    pub async fn set_variable_with_remote_storage(
         &self,
         key: &str,
         payload: &[u8],
@@ -49,7 +49,7 @@ impl crate::application::CoLink {
         Ok(())
     }
 
-    pub(crate) async fn _get_variable_remote_storage(
+    pub async fn get_variable_with_remote_storage(
         &self,
         key: &str,
         sender: &Participant,

@@ -144,7 +144,7 @@ impl CoLinkProtocol {
                             #[cfg(feature = "variable_transfer")]
                             {
                                 cl.vt_p2p = Arc::new(
-                                    crate::extensions::variable_transfer::p2p_inbox::VTP2P {
+                                    crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX {
                                         my_public_addr: self.vt_public_addr.clone(),
                                         ..Default::default()
                                     },
