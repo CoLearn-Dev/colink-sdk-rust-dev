@@ -5,7 +5,7 @@ use futures_lite::stream::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicQosOptions},
     types::FieldTable,
-    Connection, ConnectionProperties,
+    Connection, ConnectionProperties, Consumer,
 };
 use prost::Message;
 use rand::Rng;
@@ -50,6 +50,68 @@ impl CoLinkProtocol {
     }
 
     pub async fn start(&self) -> Result<(), Error> {
+        let mut consumer = self.get_mq_consumer().await?;
+        while let Some(delivery) = consumer.next().await {
+            let delivery = delivery.expect("error in consumer");
+            let data = String::from_utf8_lossy(&delivery.data);
+            debug!("Received [{}]", data);
+            let message: SubscriptionMessage = prost::Message::decode(&*delivery.data).unwrap();
+            if message.change_type != "delete" {
+                let task_id: Task = prost::Message::decode(&*message.payload).unwrap();
+                let res = self
+                    .cl
+                    .read_entries(&[StorageEntry {
+                        key_name: format!("_internal:tasks:{}", task_id.task_id),
+                        ..Default::default()
+                    }])
+                    .await;
+                match res {
+                    Ok(res) => {
+                        let task_entry = &res[0];
+                        let task: Task = prost::Message::decode(&*task_entry.payload).unwrap();
+                        self.process_task(task).await?;
+                    }
+                    Err(e) => error!("Pull Task Error: {}.", e),
+                }
+            }
+            delivery.ack(BasicAckOptions::default()).await.unwrap();
+        }
+
+        Ok(())
+    }
+
+    async fn process_task(&self, task: Task) -> Result<(), Error> {
+        if task.status == "started" {
+            // begin user func
+            let mut cl = self.cl.clone();
+            cl.set_task_id(&task.task_id);
+            #[cfg(feature = "variable_transfer")]
+            {
+                cl.vt_p2p = Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX {
+                    my_public_addr: self.vt_public_addr.clone(),
+                    ..Default::default()
+                });
+            }
+            let cl_clone = cl.clone();
+            match self
+                .user_func
+                .start(cl, task.protocol_param, task.participants)
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => error!("Task {}: {}.", task.task_id, e),
+            }
+            if cl_clone.vt_p2p.my_inbox.write().await.is_some() {
+                let my_inbox = cl_clone.vt_p2p.my_inbox.write().await;
+                my_inbox.as_ref().unwrap().shutdown_channel.send(()).await?;
+            }
+            // end user func
+            self.cl.finish_task(&task.task_id).await?;
+        }
+        Ok(())
+    }
+
+    async fn get_mq_consumer(&self) -> Result<Consumer, Error> {
         let operator_mq_key = format!("_internal:protocols:{}:operator_mq", self.protocol_and_role);
         let lock = self.cl.lock(&operator_mq_key).await?;
         let res = self
@@ -110,7 +172,7 @@ impl CoLinkProtocol {
         let mq = Connection::connect(&mq_addr, ConnectionProperties::default()).await?;
         let channel = mq.create_channel().await?;
         channel.basic_qos(1, BasicQosOptions::default()).await?;
-        let mut consumer = channel
+        let consumer = channel
             .basic_consume(
                 &queue_name,
                 "",
@@ -118,62 +180,7 @@ impl CoLinkProtocol {
                 FieldTable::default(),
             )
             .await?;
-
-        while let Some(delivery) = consumer.next().await {
-            let delivery = delivery.expect("error in consumer");
-            let data = String::from_utf8_lossy(&delivery.data);
-            debug!("Received [{}]", data);
-            let message: SubscriptionMessage = prost::Message::decode(&*delivery.data).unwrap();
-            if message.change_type != "delete" {
-                let task_id: Task = prost::Message::decode(&*message.payload).unwrap();
-                let res = self
-                    .cl
-                    .read_entries(&[StorageEntry {
-                        key_name: format!("_internal:tasks:{}", task_id.task_id),
-                        ..Default::default()
-                    }])
-                    .await;
-                match res {
-                    Ok(res) => {
-                        let task_entry = &res[0];
-                        let task: Task = prost::Message::decode(&*task_entry.payload).unwrap();
-                        if task.status == "started" {
-                            // begin user func
-                            let mut cl = self.cl.clone();
-                            cl.set_task_id(&task.task_id);
-                            #[cfg(feature = "variable_transfer")]
-                            {
-                                cl.vt_p2p = Arc::new(
-                                    crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX {
-                                        my_public_addr: self.vt_public_addr.clone(),
-                                        ..Default::default()
-                                    },
-                                );
-                            }
-                            let cl_clone = cl.clone();
-                            match self
-                                .user_func
-                                .start(cl, task.protocol_param, task.participants)
-                                .await
-                            {
-                                Ok(_) => {}
-                                Err(e) => error!("Task {}: {}.", task.task_id, e),
-                            }
-                            if cl_clone.vt_p2p.my_inbox.write().await.is_some() {
-                                let my_inbox = cl_clone.vt_p2p.my_inbox.write().await;
-                                my_inbox.as_ref().unwrap().shutdown_channel.send(()).await?;
-                            }
-                            // end user func
-                            self.cl.finish_task(&task.task_id).await?;
-                        }
-                    }
-                    Err(e) => error!("Pull Task Error: {}.", e),
-                }
-            }
-            delivery.ack(BasicAckOptions::default()).await.unwrap();
-        }
-
-        Ok(())
+        Ok(consumer)
     }
 }
 
