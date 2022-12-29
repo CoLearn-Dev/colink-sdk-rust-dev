@@ -155,70 +155,65 @@ impl crate::application::CoLink {
         &self,
         key: &str,
         payload: &[u8],
-        receivers: &[Participant],
+        receiver: &Participant,
     ) -> Result<(), Error> {
-        for receiver in receivers {
-            // TODO parallel and fallback
-            if !self
-                .vt_p2p
+        if !self
+            .vt_p2p
+            .remote_inboxes
+            .read()
+            .await
+            .contains_key(&receiver.user_id)
+        {
+            let inbox = self
+                .get_variable_with_remote_storage("inbox", receiver)
+                .await?;
+            let inbox: VTInbox = serde_json::from_slice(&inbox)?;
+            let inbox = if inbox.addr.is_empty() {
+                None
+            } else {
+                Some(inbox)
+            };
+            self.vt_p2p
                 .remote_inboxes
-                .read()
+                .write()
                 .await
-                .contains_key(&receiver.user_id)
-            {
-                let inbox = self
-                    .get_variable_with_remote_storage("inbox", receiver)
-                    .await?;
-                let inbox: VTInbox = serde_json::from_slice(&inbox)?;
-                let inbox = if inbox.addr.is_empty() {
-                    None
-                } else {
-                    Some(inbox)
-                };
-                self.vt_p2p
-                    .remote_inboxes
-                    .write()
-                    .await
-                    .insert(receiver.user_id.clone(), inbox);
-            }
-            match self
-                .vt_p2p
-                .remote_inboxes
-                .read()
-                .await
-                .get(&receiver.user_id)
-                .unwrap()
-            {
-                Some(remote_inbox) => {
-                    let mut roots = RootCertStore::empty();
-                    roots.add_parsable_certificates(&[remote_inbox.tls_cert.clone()]);
-                    let tls_cfg = rustls::ClientConfig::builder()
-                        .with_safe_defaults()
-                        .with_root_certificates(roots)
-                        .with_no_client_auth();
-                    let https = hyper_rustls::HttpsConnectorBuilder::new()
-                        .with_tls_config(tls_cfg)
-                        .https_only()
-                        .with_server_name(
-                            super::tls_utils::SELF_SIGNED_CERT_DOMAIN_NAME.to_string(),
-                        )
-                        .enable_http1()
-                        .build();
-                    let client: Client<_, hyper::Body> = Client::builder().build(https);
-                    let req = Request::builder()
-                        .method(Method::POST)
-                        .uri(&remote_inbox.addr)
-                        .header("user_id", self.get_user_id()?)
-                        .header("key", key)
-                        .header("token", &remote_inbox.vt_jwt)
-                        .body(Body::from(payload.to_vec()))?;
-                    let resp = client.request(req).await?;
-                    if resp.status() != StatusCode::OK {
-                        Err(format!("Remote inbox: error {}", resp.status()))?;
-                    }
+                .insert(receiver.user_id.clone(), inbox);
+        }
+        match self
+            .vt_p2p
+            .remote_inboxes
+            .read()
+            .await
+            .get(&receiver.user_id)
+            .unwrap()
+        {
+            Some(remote_inbox) => {
+                let mut roots = RootCertStore::empty();
+                roots.add_parsable_certificates(&[remote_inbox.tls_cert.clone()]);
+                let tls_cfg = rustls::ClientConfig::builder()
+                    .with_safe_defaults()
+                    .with_root_certificates(roots)
+                    .with_no_client_auth();
+                let https = hyper_rustls::HttpsConnectorBuilder::new()
+                    .with_tls_config(tls_cfg)
+                    .https_only()
+                    .with_server_name(super::tls_utils::SELF_SIGNED_CERT_DOMAIN_NAME.to_string())
+                    .enable_http1()
+                    .build();
+                let client: Client<_, hyper::Body> = Client::builder().build(https);
+                let req = Request::builder()
+                    .method(Method::POST)
+                    .uri(&remote_inbox.addr)
+                    .header("user_id", self.get_user_id()?)
+                    .header("key", key)
+                    .header("token", &remote_inbox.vt_jwt)
+                    .body(Body::from(payload.to_vec()))?;
+                let resp = client.request(req).await?;
+                if resp.status() != StatusCode::OK {
+                    Err(format!("Remote inbox: error {}", resp.status()))?;
                 }
-                None => Err("Remote inbox: not available")?,
             }
+            None => Err("Remote inbox: not available")?,
         }
         Ok(())
     }
