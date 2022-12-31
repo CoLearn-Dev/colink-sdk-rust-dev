@@ -53,8 +53,7 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
         let response = con.set(key_name, payload)?;
-
-        Ok("".to_string())
+        Ok(response)
     }
 
     #[async_recursion]
@@ -63,7 +62,9 @@ impl crate::application::CoLink {
         address: &str,
         key_name: &str,
     ) -> Result<Vec<u8>, Error> {
-        Ok(vec![])
+        let mut con = self._get_con_from_stored_credentials(address).await?;
+        let response: Vec<u8> = con.get(key_name)?;
+        Ok(response)
     }
 
     #[async_recursion]
@@ -73,7 +74,9 @@ impl crate::application::CoLink {
         key_name: &str,
         payload: &[u8],
     ) -> Result<String, Error> {
-        Ok("".to_string())
+        let mut con = self._get_con_from_stored_credentials(address).await?;
+        let response = con.set(key_name, payload)?;
+        Ok(response)
     }
 
     #[async_recursion]
@@ -82,6 +85,8 @@ impl crate::application::CoLink {
         address: &str,
         key_name: &str,
     ) -> Result<String, Error> {
-        Ok("".to_string())
+        let mut con = self._get_con_from_stored_credentials(address).await?;
+        let response = con.del(key_name)?;
+        Ok(response)
     }
 }
