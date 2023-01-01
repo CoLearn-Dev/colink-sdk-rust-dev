@@ -12,36 +12,12 @@ impl crate::application::CoLink {
 
     async fn _get_con_from_stored_credentials(
         &self,
-        address: &str,
+        key_path: &str,
     ) -> Result<redis::Connection, Error> {
-        // get credentials from storage
-        let redis_username = self
-            .read_entry(format!("{}:{}", address, "redis_username").as_str())
-            .await?;
-        let redis_username_string = String::from_utf8(redis_username)?;
-        let redis_password = self
-            .read_entry(format!("{}:{}", address, "redis_password").as_str())
-            .await?;
-        let redis_password_string = String::from_utf8(redis_password)?;
-        let redis_host_name = self
-            .read_entry(format!("{}:{}", address, "redis_host_name").as_str())
-            .await?;
-        let redis_host_name_string = String::from_utf8(redis_host_name)?;
-
-        // get the uri scheme from storage, if doesn't exist, default to non-ssl
-        let uri_scheme = self
-            .read_entry(format!("{}:{}", address, "redis_use_secure").as_str())
-            .await;
-        let mut uri_scheme_string = "redis://".to_string();
-        if uri_scheme.is_ok() {
-            uri_scheme_string = "rediss://".to_string();
-        }
-
-        let redis_address = format!(
-            "{}://{}:{}@{}",
-            uri_scheme_string, redis_username_string, redis_password_string, redis_host_name_string
-        );
-        self._get_con_from_address(&redis_address)
+        let redis_url_key = format!("{}:redis_url", key_path);
+        let redis_url = self.read_entry(redis_url_key.as_str()).await?;
+        let redis_url_string = String::from_utf8(redis_url)?;
+        self._get_con_from_address(redis_url_string.as_str())
     }
 
     #[async_recursion]
