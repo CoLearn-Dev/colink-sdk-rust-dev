@@ -101,8 +101,13 @@ impl CoLinkProtocol {
                 Err(e) => error!("Task {}: {}.", task.task_id, e),
             }
             if cl_clone.vt_p2p.inbox_server.write().await.is_some() {
-                let my_inbox = cl_clone.vt_p2p.inbox_server.write().await;
-                my_inbox.as_ref().unwrap().shutdown_channel.send(()).await?;
+                let inbox_server = cl_clone.vt_p2p.inbox_server.write().await;
+                inbox_server
+                    .as_ref()
+                    .unwrap()
+                    .shutdown_channel
+                    .send(())
+                    .await?;
             }
             self.cl.finish_task(&task.task_id).await?;
         }

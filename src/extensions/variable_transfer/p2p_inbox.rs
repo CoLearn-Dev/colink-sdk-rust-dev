@@ -234,8 +234,8 @@ impl crate::application::CoLink {
             // create inbox if it does not exist
             if self.vt_p2p.public_addr.is_some() && !(*self.vt_p2p.has_created_inbox.lock().await) {
                 let mut has_created_inbox = self.vt_p2p.has_created_inbox.lock().await;
-                let my_inbox = VTInboxServer::new();
-                *self.vt_p2p.inbox_server.write().await = Some(my_inbox);
+                let inbox_server = VTInboxServer::new();
+                *self.vt_p2p.inbox_server.write().await = Some(inbox_server);
                 *has_created_inbox = true;
             }
             // generate vt_inbox information for the sender
@@ -296,15 +296,15 @@ impl crate::application::CoLink {
             Err("Remote inbox: not available")?;
         }
         loop {
-            let my_inbox = self.vt_p2p.inbox_server.read().await;
-            let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
+            let inbox_server = self.vt_p2p.inbox_server.read().await;
+            let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
             let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
             if data.is_some() {
                 return Ok(data.unwrap().clone());
             }
             drop(data_map);
             let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-            my_inbox
+            inbox_server
                 .as_ref()
                 .unwrap()
                 .notification_channels
@@ -312,16 +312,16 @@ impl crate::application::CoLink {
                 .await
                 .insert((sender.user_id.clone(), key.to_string()), tx);
             // try again after creating the channel
-            let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
+            let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
             let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
             if data.is_some() {
                 return Ok(data.unwrap().clone());
             }
             drop(data_map);
-            drop(my_inbox);
+            drop(inbox_server);
             rx.recv().await;
-            let my_inbox = self.vt_p2p.inbox_server.read().await;
-            let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
+            let inbox_server = self.vt_p2p.inbox_server.read().await;
+            let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
             let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
             if data.is_some() {
                 return Ok(data.unwrap().clone());
@@ -329,7 +329,7 @@ impl crate::application::CoLink {
                 Err("Fail to retrieve data from the inbox")?
             }
             drop(data_map);
-            drop(my_inbox);
+            drop(inbox_server);
         }
     }
 }
