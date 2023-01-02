@@ -143,9 +143,9 @@ pub(crate) struct VTInbox {
 
 #[derive(Default)]
 pub(crate) struct VTP2PCTX {
-    pub(crate) my_public_addr: Option<String>,
+    pub(crate) public_addr: Option<String>,
     pub(crate) has_created_inbox: Mutex<bool>,
-    pub(crate) my_inbox: RwLock<Option<VTInboxServer>>,
+    pub(crate) inbox_server: RwLock<Option<VTInboxServer>>,
     pub(crate) has_configured_inbox: RwLock<HashSet<String>>,
     pub(crate) remote_inboxes: RwLock<HashMap<String, Option<VTInbox>>>,
 }
@@ -232,16 +232,14 @@ impl crate::application::CoLink {
             .contains(&sender.user_id)
         {
             // create inbox if it does not exist
-            if self.vt_p2p.my_public_addr.is_some()
-                && !(*self.vt_p2p.has_created_inbox.lock().await)
-            {
+            if self.vt_p2p.public_addr.is_some() && !(*self.vt_p2p.has_created_inbox.lock().await) {
                 let mut has_created_inbox = self.vt_p2p.has_created_inbox.lock().await;
                 let my_inbox = VTInboxServer::new();
-                *self.vt_p2p.my_inbox.write().await = Some(my_inbox);
+                *self.vt_p2p.inbox_server.write().await = Some(my_inbox);
                 *has_created_inbox = true;
             }
             // generate vt_inbox information for the sender
-            let vt_inbox = if self.vt_p2p.my_public_addr.is_none() {
+            let vt_inbox = if self.vt_p2p.public_addr.is_none() {
                 VTInbox {
                     addr: "".to_string(),
                     vt_jwt: "".to_string(),
@@ -250,7 +248,7 @@ impl crate::application::CoLink {
             } else {
                 let jwt_secret = self
                     .vt_p2p
-                    .my_inbox
+                    .inbox_server
                     .read()
                     .await
                     .as_ref()
@@ -266,13 +264,13 @@ impl crate::application::CoLink {
                 VTInbox {
                     addr: format!(
                         "https://{}:{}",
-                        self.vt_p2p.my_public_addr.as_ref().unwrap(),
-                        self.vt_p2p.my_inbox.read().await.as_ref().unwrap().port
+                        self.vt_p2p.public_addr.as_ref().unwrap(),
+                        self.vt_p2p.inbox_server.read().await.as_ref().unwrap().port
                     ),
                     vt_jwt,
                     tls_cert: self
                         .vt_p2p
-                        .my_inbox
+                        .inbox_server
                         .read()
                         .await
                         .as_ref()
@@ -294,11 +292,11 @@ impl crate::application::CoLink {
                 .insert(sender.user_id.clone());
         }
 
-        if self.vt_p2p.my_public_addr.is_none() {
+        if self.vt_p2p.public_addr.is_none() {
             Err("Remote inbox: not available")?;
         }
         loop {
-            let my_inbox = self.vt_p2p.my_inbox.read().await;
+            let my_inbox = self.vt_p2p.inbox_server.read().await;
             let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
             let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
             if data.is_some() {
@@ -322,7 +320,7 @@ impl crate::application::CoLink {
             drop(data_map);
             drop(my_inbox);
             rx.recv().await;
-            let my_inbox = self.vt_p2p.my_inbox.read().await;
+            let my_inbox = self.vt_p2p.inbox_server.read().await;
             let data_map = my_inbox.as_ref().unwrap().data_map.read().await;
             let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
             if data.is_some() {
