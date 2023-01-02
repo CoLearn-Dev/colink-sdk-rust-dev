@@ -82,13 +82,12 @@ impl CoLinkProtocol {
 
     async fn process_task(&self, task: Task) -> Result<(), Error> {
         if task.status == "started" {
-            // begin user func
             let mut cl = self.cl.clone();
             cl.set_task_id(&task.task_id);
             #[cfg(feature = "variable_transfer")]
             {
                 cl.vt_p2p = Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX {
-                    my_public_addr: self.vt_public_addr.clone(),
+                    public_addr: self.vt_public_addr.clone(),
                     ..Default::default()
                 });
             }
@@ -101,11 +100,10 @@ impl CoLinkProtocol {
                 Ok(_) => {}
                 Err(e) => error!("Task {}: {}.", task.task_id, e),
             }
-            if cl_clone.vt_p2p.my_inbox.write().await.is_some() {
-                let my_inbox = cl_clone.vt_p2p.my_inbox.write().await;
+            if cl_clone.vt_p2p.inbox_server.write().await.is_some() {
+                let my_inbox = cl_clone.vt_p2p.inbox_server.write().await;
                 my_inbox.as_ref().unwrap().shutdown_channel.send(()).await?;
             }
-            // end user func
             self.cl.finish_task(&task.task_id).await?;
         }
         Ok(())

@@ -3,7 +3,6 @@ use colink::{
     extensions::instant_server::{InstantRegistry, InstantServer},
     CoLink, Participant, ProtocolEntry,
 };
-use rand::Rng;
 
 struct Initiator;
 #[colink::async_trait]
@@ -84,19 +83,19 @@ async fn test_vt() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'stat
     let task_id = cls[0]
         .run_task("variable_transfer_test", data, &participants, true)
         .await?;
-    let idx: usize = rand::thread_rng().gen_range(1..8);
-    let idx2: usize = rand::thread_rng().gen_range(0..8);
-    let res = cls[idx]
-        .read_or_wait(&format!("tasks:{}:output{}", task_id, idx2))
-        .await?;
-    println!("{}", String::from_utf8_lossy(&res));
-    assert!(res == data);
-    let idx: usize = rand::thread_rng().gen_range(1..8);
-    let idx2: usize = rand::thread_rng().gen_range(0..8);
-    let res = cls[idx]
-        .read_or_wait(&format!("tasks:{}:output_remote_storage{}", task_id, idx2))
-        .await?;
-    println!("{}", String::from_utf8_lossy(&res));
-    assert!(res == data);
+    for idx in 1..8 {
+        for idx2 in 0..8 {
+            let res = cls[idx]
+                .read_or_wait(&format!("tasks:{}:output{}", task_id, idx2))
+                .await?;
+            println!("{}", String::from_utf8_lossy(&res));
+            assert!(res == data);
+            let res = cls[idx]
+                .read_or_wait(&format!("tasks:{}:output_remote_storage{}", task_id, idx2))
+                .await?;
+            println!("{}", String::from_utf8_lossy(&res));
+            assert!(res == data);
+        }
+    }
     Ok(())
 }
