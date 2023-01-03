@@ -86,10 +86,11 @@ impl CoLinkProtocol {
             cl.set_task_id(&task.task_id);
             #[cfg(feature = "variable_transfer")]
             {
-                cl.vt_p2p = Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX {
-                    public_addr: self.vt_public_addr.clone(),
-                    ..Default::default()
-                });
+                cl.vt_p2p_ctx =
+                    Arc::new(crate::extensions::variable_transfer::p2p_inbox::VtP2pCtx {
+                        public_addr: self.vt_public_addr.clone(),
+                        ..Default::default()
+                    });
             }
             let cl_clone = cl.clone();
             match self
@@ -100,8 +101,8 @@ impl CoLinkProtocol {
                 Ok(_) => {}
                 Err(e) => error!("Task {}: {}.", task.task_id, e),
             }
-            if cl_clone.vt_p2p.inbox_server.write().await.is_some() {
-                let inbox_server = cl_clone.vt_p2p.inbox_server.write().await;
+            if cl_clone.vt_p2p_ctx.inbox_server.write().await.is_some() {
+                let inbox_server = cl_clone.vt_p2p_ctx.inbox_server.write().await;
                 inbox_server
                     .as_ref()
                     .unwrap()

@@ -32,7 +32,7 @@ pub struct CoLink {
     pub(crate) ca_certificate: Option<Certificate>,
     pub(crate) identity: Option<Identity>,
     #[cfg(feature = "variable_transfer")]
-    pub(crate) vt_p2p: Arc<crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX>,
+    pub(crate) vt_p2p_ctx: Arc<crate::extensions::variable_transfer::p2p_inbox::VtP2pCtx>,
 }
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -46,7 +46,9 @@ impl CoLink {
             ca_certificate: None,
             identity: None,
             #[cfg(feature = "variable_transfer")]
-            vt_p2p: Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX::default()),
+            vt_p2p_ctx: Arc::new(
+                crate::extensions::variable_transfer::p2p_inbox::VtP2pCtx::default(),
+            ),
         }
     }
 
@@ -89,8 +91,8 @@ impl CoLink {
         self.task_id = task_id.to_string();
         #[cfg(feature = "variable_transfer")]
         {
-            self.vt_p2p =
-                Arc::new(crate::extensions::variable_transfer::p2p_inbox::VTP2PCTX::default());
+            self.vt_p2p_ctx =
+                Arc::new(crate::extensions::variable_transfer::p2p_inbox::VtP2pCtx::default());
         }
     }
 
