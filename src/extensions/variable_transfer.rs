@@ -1,9 +1,8 @@
 use crate::colink_proto::*;
-use colink_remote_storage::*;
-use prost::Message;
-mod colink_remote_storage {
-    include!(concat!(env!("OUT_DIR"), "/colink_remote_storage.rs"));
-}
+use std::sync::Arc;
+pub(crate) mod p2p_inbox;
+mod remote_storage;
+mod tls_utils;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -17,38 +16,24 @@ impl crate::application::CoLink {
         if self.task_id.is_empty() {
             Err("task_id not found".to_string())?;
         }
-        let mut new_participants = vec![Participant {
-            user_id: self.get_user_id()?,
-            role: "requester".to_string(),
-        }];
-        for p in receivers {
-            if p.user_id == self.get_user_id()? {
-                self.create_entry(
-                    &format!(
-                        "_remote_storage:private:{}:_variable_transfer:{}:{}",
-                        p.user_id,
-                        self.get_task_id()?,
-                        key
-                    ),
-                    payload,
-                )
-                .await?;
-            } else {
-                new_participants.push(Participant {
-                    user_id: p.user_id.clone(),
-                    role: "provider".to_string(),
-                });
-            }
+        let payload = Arc::new(payload.to_vec());
+        for receiver in receivers {
+            let cl = self.clone();
+            let key = key.to_string();
+            let payload = payload.clone();
+            let receiver = receiver.clone();
+            tokio::spawn(async move {
+                if cl
+                    ._set_variable_p2p(&key, &payload, &receiver)
+                    .await
+                    .is_err()
+                {
+                    cl.set_variable_with_remote_storage(&key, &payload, &[receiver.clone()])
+                        .await?;
+                }
+                Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
+            });
         }
-        let params = CreateParams {
-            remote_key_name: format!("_variable_transfer:{}:{}", self.get_task_id()?, key),
-            payload: payload.to_vec(),
-            ..Default::default()
-        };
-        let mut payload = vec![];
-        params.encode(&mut payload).unwrap();
-        self.run_task("remote_storage.create", &payload, &new_participants, false)
-            .await?;
         Ok(())
     }
 
@@ -56,13 +41,10 @@ impl crate::application::CoLink {
         if self.task_id.is_empty() {
             Err("task_id not found".to_string())?;
         }
-        let key = format!(
-            "_remote_storage:private:{}:_variable_transfer:{}:{}",
-            sender.user_id,
-            self.get_task_id()?,
-            key
-        );
-        let res = self.read_or_wait(&key).await?;
+        if let Ok(res) = self._get_variable_p2p(key, sender).await {
+            return Ok(res);
+        }
+        let res = self.get_variable_with_remote_storage(key, sender).await?;
         Ok(res)
     }
 }
