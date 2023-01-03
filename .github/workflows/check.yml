@@ -36,8 +36,5 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy test
         run: cargo clippy --profile test -- -D warnings -D clippy::dbg_macro
-      - name: Download Server
-        run: bash download-server.sh
-        working-directory: tests
       - name: Run tests
         run: cargo test
