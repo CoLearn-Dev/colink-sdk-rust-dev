@@ -12,12 +12,12 @@ async fn test_greetings() -> Result<(), Box<dyn std::error::Error + Send + Sync 
     tracing_subscriber::fmt::init();
     build();
     for i in 0..11 {
-        test_main(USER_NUM[i as usize]).await?;
+        test_protocol_greetings(USER_NUM[i as usize]).await?;
     }
     Ok(())
 }
 
-async fn test_main(
+async fn test_protocol_greetings(
     user_num: usize,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let _ir = InstantRegistry::new().await;
