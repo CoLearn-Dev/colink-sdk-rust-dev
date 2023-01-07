@@ -70,6 +70,22 @@ impl InstantServer {
         } else {
             "http://guest:guest@localhost:15672/api".to_string()
         };
+        let (mq_amqp, mq_api) = std::thread::spawn(move || {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async {
+                    let res = reqwest::get(&mq_api).await.unwrap();
+                    assert!(res.status() == hyper::StatusCode::OK);
+                    lapin::Connection::connect(&mq_amqp, lapin::ConnectionProperties::default())
+                        .await
+                        .unwrap();
+                });
+            (mq_amqp, mq_api)
+        })
+        .join()
+        .unwrap();
         let child = Command::new(program)
             .args([
                 "--address",
@@ -88,8 +104,6 @@ impl InstantServer {
             ])
             .env("COLINK_HOME", colink_home)
             .current_dir(working_dir.clone())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
             .spawn()
             .unwrap();
         loop {
@@ -130,7 +144,7 @@ impl Drop for InstantRegistry {
 }
 
 impl InstantRegistry {
-    pub async fn new() -> Self {
+    pub fn new() -> Self {
         let is = InstantServer::new();
         let colink_home = get_colink_home().unwrap();
         let registry_file = Path::new(&colink_home).join("reg_config");
@@ -139,7 +153,18 @@ impl InstantRegistry {
             .create_new(true)
             .open(&registry_file)
             .unwrap();
-        is.get_colink().switch_to_generated_user().await.unwrap();
+        let is = std::thread::spawn(move || {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async {
+                    is.get_colink().switch_to_generated_user().await.unwrap();
+                });
+            is
+        })
+        .join()
+        .unwrap();
         Self {
             _instant_server: is,
         }
