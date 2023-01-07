@@ -143,6 +143,12 @@ impl Drop for InstantRegistry {
     }
 }
 
+impl Default for InstantRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InstantRegistry {
     pub fn new() -> Self {
         let is = InstantServer::new();
@@ -151,7 +157,7 @@ impl InstantRegistry {
         let _file = File::options()
             .write(true)
             .create_new(true)
-            .open(&registry_file)
+            .open(registry_file)
             .unwrap();
         let is = std::thread::spawn(move || {
             tokio::runtime::Builder::new_multi_thread()
