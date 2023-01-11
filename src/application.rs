@@ -170,6 +170,34 @@ impl CoLink {
         Ok(response.get_ref().jwt.clone())
     }
 
+    pub async fn generate_token_with_signature(
+        &self,
+        public_key: &secp256k1::PublicKey,
+        signature_timestamp: i64,
+        expiration_timestamp: i64,
+        signature: &[u8],
+    ) -> Result<String, Error> {
+        let public_key_vec = public_key.serialize().to_vec();
+        let mut client = self._grpc_connect(&self.core_addr).await?;
+        let response = client
+            .generate_token(generate_request(
+                &self.jwt,
+                GenerateTokenRequest {
+                    expiration_time: expiration_timestamp,
+                    privilege: "user".to_string(),
+                    user_consent: Some(UserConsent {
+                        public_key: public_key_vec,
+                        signature_timestamp,
+                        expiration_timestamp,
+                        signature: signature.to_vec(),
+                    }),
+                },
+            ))
+            .await?;
+        debug!("RESPONSE={:?}", response);
+        Ok(response.get_ref().jwt.clone())
+    }
+
     pub async fn create_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         if key_name.contains('$') {
