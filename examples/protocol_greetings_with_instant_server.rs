@@ -36,7 +36,7 @@ impl ProtocolEntry for Receiver {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let ir = InstantRegistry::new().await;
+    let ir = InstantRegistry::new();
     // The instant server will automatically use the instant registry when there is one.
     let is0 = InstantServer::new();
     let is1 = InstantServer::new();

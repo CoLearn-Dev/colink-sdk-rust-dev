@@ -55,7 +55,7 @@ impl ProtocolEntry for Receiver {
 
 #[tokio::test]
 async fn test_vt() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let ir = InstantRegistry::new().await;
+    let ir = InstantRegistry::new();
     let mut iss = vec![];
     let mut cls = vec![];
     for i in 0..8 {
