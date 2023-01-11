@@ -162,6 +162,7 @@ impl CoLink {
                 GenerateTokenRequest {
                     expiration_time,
                     privilege: privilege.to_string(),
+                    ..Default::default()
                 },
             ))
             .await?;
