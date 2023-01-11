@@ -1,4 +1,4 @@
-use colink::extensions::policy_module::{Rule, TaskFilter};
+use colink::extensions::policy_module::{Action, Rule, TaskFilter};
 use colink::CoLink;
 use std::env;
 
@@ -18,7 +18,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
                 protocol_name: "greetings".to_string(),
                 ..Default::default()
             }),
-            action: "approve".to_string(),
+            action: Some(Action {
+                r#type: "approve".to_string(),
+                ..Default::default()
+            }),
             priority: 1,
             ..Default::default()
         })
