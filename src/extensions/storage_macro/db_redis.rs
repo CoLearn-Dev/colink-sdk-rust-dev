@@ -28,8 +28,11 @@ impl crate::application::CoLink {
         payload: &[u8],
     ) -> Result<String, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
-        let response = con.set(key_name, payload)?;
-        Ok(response)
+        let response: i32 = con.set_nx(key_name, payload)?;
+        if response == 0 {
+            Err("key already exists.")?
+        }
+        Ok(response.to_string())
     }
 
     #[async_recursion]
@@ -39,8 +42,11 @@ impl crate::application::CoLink {
         key_name: &str,
     ) -> Result<Vec<u8>, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
-        let response: Vec<u8> = con.get(key_name)?;
-        Ok(response)
+        let response: Option<Vec<u8>> = con.get(key_name)?;
+        match response {
+            Some(response) => Ok(response),
+            None => Err("key does not exist.")?,
+        }
     }
 
     #[async_recursion]
@@ -62,7 +68,10 @@ impl crate::application::CoLink {
         key_name: &str,
     ) -> Result<String, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
-        let response = con.del(key_name)?;
-        Ok(response)
+        let response: i32 = con.del(key_name)?;
+        if response == 0 {
+            Err("key does not exist.")?
+        }
+        Ok(response.to_string())
     }
 }
