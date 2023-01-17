@@ -17,7 +17,7 @@ mod storage_macro;
 #[cfg(feature = "extensions")]
 mod switch_to_generated_user;
 #[cfg(feature = "variable_transfer")]
-mod variable_transfer;
+pub(crate) mod variable_transfer;
 #[cfg(feature = "extensions")]
 mod wait_task;
 #[cfg(feature = "extensions")]

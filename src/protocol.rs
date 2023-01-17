@@ -5,7 +5,7 @@ use futures_lite::stream::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions, BasicQosOptions},
     types::FieldTable,
-    Connection, ConnectionProperties,
+    Connection, ConnectionProperties, Consumer,
 };
 use prost::Message;
 use rand::Rng;
@@ -31,18 +31,91 @@ pub struct CoLinkProtocol {
     protocol_and_role: String,
     cl: CoLink,
     user_func: Box<dyn ProtocolEntry>,
+    vt_public_addr: Option<String>,
 }
 
 impl CoLinkProtocol {
-    pub fn new(protocol_and_role: &str, cl: CoLink, user_func: Box<dyn ProtocolEntry>) -> Self {
+    pub fn new(
+        protocol_and_role: &str,
+        cl: CoLink,
+        user_func: Box<dyn ProtocolEntry>,
+        vt_public_addr: Option<String>,
+    ) -> Self {
         Self {
             protocol_and_role: protocol_and_role.to_string(),
             cl,
             user_func,
+            vt_public_addr,
         }
     }
 
     pub async fn start(&self) -> Result<(), Error> {
+        let mut consumer = self.get_mq_consumer().await?;
+        while let Some(delivery) = consumer.next().await {
+            let delivery = delivery.expect("error in consumer");
+            let data = String::from_utf8_lossy(&delivery.data);
+            debug!("Received [{}]", data);
+            let message: SubscriptionMessage = prost::Message::decode(&*delivery.data).unwrap();
+            if message.change_type != "delete" {
+                let task_id: Task = prost::Message::decode(&*message.payload).unwrap();
+                let res = self
+                    .cl
+                    .read_entries(&[StorageEntry {
+                        key_name: format!("_internal:tasks:{}", task_id.task_id),
+                        ..Default::default()
+                    }])
+                    .await;
+                match res {
+                    Ok(res) => {
+                        let task_entry = &res[0];
+                        let task: Task = prost::Message::decode(&*task_entry.payload).unwrap();
+                        self.process_task(task).await?;
+                    }
+                    Err(e) => error!("Pull Task Error: {}.", e),
+                }
+            }
+            delivery.ack(BasicAckOptions::default()).await.unwrap();
+        }
+
+        Ok(())
+    }
+
+    async fn process_task(&self, task: Task) -> Result<(), Error> {
+        if task.status == "started" {
+            let mut cl = self.cl.clone();
+            cl.set_task_id(&task.task_id);
+            #[cfg(feature = "variable_transfer")]
+            {
+                cl.vt_p2p_ctx =
+                    Arc::new(crate::extensions::variable_transfer::p2p_inbox::VtP2pCtx {
+                        public_addr: self.vt_public_addr.clone(),
+                        ..Default::default()
+                    });
+            }
+            let cl_clone = cl.clone();
+            match self
+                .user_func
+                .start(cl, task.protocol_param, task.participants)
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => error!("Task {}: {}.", task.task_id, e),
+            }
+            if cl_clone.vt_p2p_ctx.inbox_server.write().await.is_some() {
+                let inbox_server = cl_clone.vt_p2p_ctx.inbox_server.write().await;
+                inbox_server
+                    .as_ref()
+                    .unwrap()
+                    .shutdown_channel
+                    .send(())
+                    .await?;
+            }
+            self.cl.finish_task(&task.task_id).await?;
+        }
+        Ok(())
+    }
+
+    async fn get_mq_consumer(&self) -> Result<Consumer, Error> {
         let operator_mq_key = format!("_internal:protocols:{}:operator_mq", self.protocol_and_role);
         let lock = self.cl.lock(&operator_mq_key).await?;
         let res = self
@@ -103,7 +176,7 @@ impl CoLinkProtocol {
         let mq = Connection::connect(&mq_addr, ConnectionProperties::default()).await?;
         let channel = mq.create_channel().await?;
         channel.basic_qos(1, BasicQosOptions::default()).await?;
-        let mut consumer = channel
+        let consumer = channel
             .basic_consume(
                 &queue_name,
                 "",
@@ -111,48 +184,7 @@ impl CoLinkProtocol {
                 FieldTable::default(),
             )
             .await?;
-
-        while let Some(delivery) = consumer.next().await {
-            let delivery = delivery.expect("error in consumer");
-            let data = String::from_utf8_lossy(&delivery.data);
-            debug!("Received [{}]", data);
-            let message: SubscriptionMessage = prost::Message::decode(&*delivery.data).unwrap();
-            if message.change_type != "delete" {
-                let task_id: Task = prost::Message::decode(&*message.payload).unwrap();
-                let res = self
-                    .cl
-                    .read_entries(&[StorageEntry {
-                        key_name: format!("_internal:tasks:{}", task_id.task_id),
-                        ..Default::default()
-                    }])
-                    .await;
-                match res {
-                    Ok(res) => {
-                        let task_entry = &res[0];
-                        let task: Task = prost::Message::decode(&*task_entry.payload).unwrap();
-                        if task.status == "started" {
-                            // begin user func
-                            let mut cl = self.cl.clone();
-                            cl.set_task_id(&task.task_id);
-                            match self
-                                .user_func
-                                .start(cl, task.protocol_param, task.participants)
-                                .await
-                            {
-                                Ok(_) => {}
-                                Err(e) => error!("Task {}: {}.", task.task_id, e),
-                            }
-                            // end user func
-                            self.cl.finish_task(&task.task_id).await?;
-                        }
-                    }
-                    Err(e) => error!("Pull Task Error: {}.", e),
-                }
-            }
-            delivery.ack(BasicAckOptions::default()).await.unwrap();
-        }
-
-        Ok(())
+        Ok(consumer)
     }
 }
 
@@ -160,6 +192,7 @@ pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
     keep_alive_when_disconnect: bool,
+    vt_public_addr: Option<String>,
 ) -> Result<(), Error> {
     let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
     let mut protocols = HashSet::new();
@@ -221,13 +254,14 @@ pub fn _protocol_start(
     let mut threads = vec![];
     for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
+        let vt_public_addr = vt_public_addr.clone();
         threads.push(thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    match CoLinkProtocol::new(&protocol_and_role, cl, user_func)
+                    match CoLinkProtocol::new(&protocol_and_role, cl, user_func, vt_public_addr)
                         .start()
                         .await
                     {
@@ -295,9 +329,13 @@ pub struct CommandLineArgs {
     /// Keep alive when disconnect.
     #[arg(long, env = "COLINK_KEEP_ALIVE_WHEN_DISCONNECT")]
     pub keep_alive_when_disconnect: bool,
+
+    /// Public address for the variable transfer inbox.
+    #[arg(long, env = "COLINK_VT_PUBLIC_ADDR")]
+    pub vt_public_addr: Option<String>,
 }
 
-pub fn _colink_parse_args() -> (CoLink, bool) {
+pub fn _colink_parse_args() -> (CoLink, bool, Option<String>) {
     tracing_subscriber::fmt::init();
     let CommandLineArgs {
         addr,
@@ -306,6 +344,7 @@ pub fn _colink_parse_args() -> (CoLink, bool) {
         cert,
         key,
         keep_alive_when_disconnect,
+        vt_public_addr,
     } = CommandLineArgs::parse();
     let mut cl = CoLink::new(&addr, &jwt);
     if let Some(ca) = ca {
@@ -314,14 +353,14 @@ pub fn _colink_parse_args() -> (CoLink, bool) {
     if let (Some(cert), Some(key)) = (cert, key) {
         cl = cl.identity(&cert, &key);
     }
-    (cl, keep_alive_when_disconnect)
+    (cl, keep_alive_when_disconnect, vt_public_addr)
 }
 
 #[macro_export]
 macro_rules! protocol_start {
     ( $( $x:expr ),* ) => {
         fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            let (cl, keep_alive_when_disconnect) = colink::_colink_parse_args();
+            let (cl, keep_alive_when_disconnect, vt_public_addr) = colink::_colink_parse_args();
 
             let mut user_funcs: std::collections::HashMap<
                 String,
@@ -331,7 +370,7 @@ macro_rules! protocol_start {
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
 
-            colink::_protocol_start(cl, user_funcs, keep_alive_when_disconnect)?;
+            colink::_protocol_start(cl, user_funcs, keep_alive_when_disconnect, vt_public_addr)?;
 
             Ok(())
         }
@@ -351,7 +390,7 @@ macro_rules! protocol_attach {
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
             std::thread::spawn(|| {
-                colink::_protocol_start(cl, user_funcs, false)?;
+                colink::_protocol_start(cl, user_funcs, false, Some("127.0.0.1".to_string()))?;
                 Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
             });
         }

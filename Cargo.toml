@@ -1,6 +1,6 @@
 [package]
 name = "colink"
-version = "0.2.5"
+version = "0.2.8"
 edition = "2021"
 description = "CoLink Rust SDK"
 license = "MIT"
@@ -10,21 +10,27 @@ documentation = "https://docs.rs/colink"
 repository = "https://github.com/CoLearn-Dev/colink-sdk-rust-dev"
 
 [dependencies]
-async-recursion = "1.0.0"
+async-recursion = { version = "1.0.0", optional = true }
 async-trait = "0.1"
 base64 = "0.13.0"
 chrono = "0.4"
 clap = { version = "4.0", features = ["derive", "env"] }
 futures-lite = "1.12"
+hyper = { version = "0.14", optional = true }
+hyper-rustls = { version = "0.23", optional = true }
+jsonwebtoken = { version = "7.2", optional = true }
 lapin = "2.1"
 prost = "0.10"
 rand = { version = "0.8.4", features = ["std_rng"] }
-redis = "0.22.1"
-secp256k1 = { version = "0.21.2", features = ["rand-std"] }
+rcgen = { version = "0.10", optional = true }
+redis = { version = "0.22", optional = true }
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots"], optional = true }
+secp256k1 = { version = "0.25", features = ["rand-std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 tokio = { version = "1.18", features = ["macros", "rt-multi-thread", "rt", "fs"] }
+tokio-rustls = { version = "0.23", optional = true }
 tonic = { version = "0.7", features = ["tls", "tls-roots"] }
 tracing = "0.1"
 tracing-subscriber = "0.2"
@@ -38,8 +44,8 @@ tonic-build = "0.7"
 default = ["extensions", "remote_storage", "variable_transfer", "registry", "policy_module", "instant_server", "storage_macro"]
 extensions = []
 remote_storage = ["extensions"]
-variable_transfer = ["extensions", "remote_storage"]
+variable_transfer = ["extensions", "remote_storage", "hyper", "jsonwebtoken", "rcgen", "tokio-rustls", "hyper-rustls"]
 registry = []
 policy_module = []
-instant_server = []
-storage_macro = []
+instant_server = ["reqwest"]
+storage_macro = ["async-recursion"]
