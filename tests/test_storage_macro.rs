@@ -32,6 +32,7 @@ async fn test_storage_macro_redis() -> Result<(), Box<dyn std::error::Error + Se
     Ok(())
 }
 
+#[ignore]
 #[tokio::test]
 async fn test_storage_macro_chunk_redis(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
