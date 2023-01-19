@@ -5,19 +5,43 @@ use colink::{
 use rand::Rng;
 
 #[tokio::test]
-async fn test_storage_macro() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+async fn test_storage_macro_chunk() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>
+{
     let _ir = InstantRegistry::new();
     let is = InstantServer::new();
     let cl = is.get_colink().switch_to_generated_user().await?;
 
-    // chunk
     let key_name = "storage_macro_test_chunk:$chunk";
     test_crud(&cl, key_name).await?;
 
-    // redis
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_storage_macro_redis() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>
+{
+    let _ir = InstantRegistry::new();
+    let is = InstantServer::new();
+    let cl = is.get_colink().switch_to_generated_user().await?;
+
     cl.create_entry("storage_macro_test_redis:redis_url", b"redis://localhost")
         .await?;
     let key_name = "storage_macro_test_redis:$redis:redis_key";
+    test_crud(&cl, key_name).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_storage_macro_chunk_redis(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let _ir = InstantRegistry::new();
+    let is = InstantServer::new();
+    let cl = is.get_colink().switch_to_generated_user().await?;
+
+    cl.create_entry("test_storage_macro_chunk_redis:redis_url", b"redis://localhost")
+        .await?;
+    let key_name = "test_storage_macro_chunk_redis:$redis:redis_chunk:$chunk";
     test_crud(&cl, key_name).await?;
 
     Ok(())
