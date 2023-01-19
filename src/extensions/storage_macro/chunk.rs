@@ -50,34 +50,39 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         // lock the metadata entry to prevent simultaneous writes
-        let lock_token = self.lock(&metadata_key.clone()).await?;
-        // create the chunks and store them
-        let chunk_paths = self._store_chunks(payload, key_name).await?;
-        // make sure that the chunk paths are smaller than the maximum entry size
-        let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
-        // store the chunk paths in the metadata entry and update metadata
-        let response = self
-            .create_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
-            .await?;
+        let lock_token = self.lock(&metadata_key).await?;
+        // use a closure to prevent locking forever caused by errors
+        let res = async {
+            // create the chunks and store them
+            let chunk_paths = self._store_chunks(payload, key_name).await?;
+            // make sure that the chunk paths are smaller than the maximum entry size
+            let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
+            // store the chunk paths in the metadata entry and update metadata
+            let response = self
+                .create_entry(&metadata_key, &chunk_paths_string.into_bytes())
+                .await?;
+            Ok::<String, Error>(response)
+        }
+        .await;
         self.unlock(lock_token).await?;
-        Ok(response)
+        res
     }
 
     #[async_recursion]
     pub(crate) async fn _read_entry_chunk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
-        let metadata_response = self.read_entry(&metadata_key.clone()).await?;
-        let payload_string = String::from_utf8(metadata_response.clone())?;
+        let metadata_response = self.read_entry(&metadata_key).await?;
+        let payload_string = String::from_utf8(metadata_response)?;
         let user_id = decode_jwt_without_validation(&self.jwt).unwrap().user_id;
 
         // read the chunks into a single vector
         let chunks_paths = payload_string.split(';').collect::<Vec<&str>>();
         let mut payload = Vec::new();
         for (i, timestamp) in chunks_paths.iter().enumerate() {
-            let response = self
+            let mut response = self
                 .read_entry(&format!("{}::{}:{}@{}", user_id, key_name, i, timestamp))
                 .await?;
-            payload.append(&mut response.clone());
+            payload.append(&mut response);
         }
         Ok(payload)
     }
@@ -90,25 +95,30 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         // lock the metadata entry to prevent simultaneous writes
-        let lock_token = self.lock(&metadata_key.clone()).await?;
-        // split payload into chunks and update the chunks
-        let chunk_paths = self._store_chunks(payload, key_name).await?;
-        // make sure that the chunk paths are smaller than the maximum entry size
-        let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
-        // update the metadata entry
-        let response = self
-            .update_entry(&metadata_key.clone(), &chunk_paths_string.into_bytes())
-            .await?;
+        let lock_token = self.lock(&metadata_key).await?;
+        // use a closure to prevent locking forever caused by errors
+        let res = async {
+            // split payload into chunks and update the chunks
+            let chunk_paths = self._store_chunks(payload, key_name).await?;
+            // make sure that the chunk paths are smaller than the maximum entry size
+            let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
+            // update the metadata entry
+            let response = self
+                .update_entry(&metadata_key, &chunk_paths_string.into_bytes())
+                .await?;
+            Ok::<String, Error>(response)
+        }
+        .await;
         self.unlock(lock_token).await?;
-        Ok(response)
+        res
     }
 
     #[async_recursion]
     pub(crate) async fn _delete_entry_chunk(&self, key_name: &str) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
-        let lock_token = self.lock(&metadata_key.clone()).await?;
-        let response = self.delete_entry(&metadata_key.clone()).await?;
+        let lock_token = self.lock(&metadata_key).await?;
+        let res = self.delete_entry(&metadata_key).await;
         self.unlock(lock_token).await?;
-        Ok(response)
+        res
     }
 }
