@@ -6,7 +6,7 @@ impl crate::application::CoLink {
     /// The default retry time cap is 100 ms. If you want to specify a retry time cap, use lock_with_retry_time instead.
     pub async fn lock(&self, key: &str) -> Result<CoLinkLockToken, Error> {
         #[cfg(feature = "storage_macro")]
-        let key = &key.replace("$", "_lock_dollar");
+        let key = &key.replace('$', "_lock_dollar");
         self.lock_with_retry_time(key, 100).await
     }
 

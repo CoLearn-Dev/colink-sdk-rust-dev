@@ -40,8 +40,11 @@ async fn test_storage_macro_chunk_redis(
     let is = InstantServer::new();
     let cl = is.get_colink().switch_to_generated_user().await?;
 
-    cl.create_entry("test_storage_macro_chunk_redis:redis_url", b"redis://localhost")
-        .await?;
+    cl.create_entry(
+        "test_storage_macro_chunk_redis:redis_url",
+        b"redis://localhost",
+    )
+    .await?;
     let key_name = "test_storage_macro_chunk_redis:$redis:redis_chunk:$chunk";
     test_crud(&cl, key_name).await?;
 
