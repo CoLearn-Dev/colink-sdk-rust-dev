@@ -59,7 +59,8 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
         let response = if is_append {
-            con.append(key_name, payload)?
+            con.append::<&str, &[u8], i32>(key_name, payload)?
+                .to_string()
         } else {
             con.set(key_name, payload)?
         };
