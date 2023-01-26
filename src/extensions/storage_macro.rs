@@ -34,12 +34,9 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let (string_before, macro_type, string_after) = self._parse_macro(key_name);
         match macro_type.as_str() {
-            "chunk" => {
-                self._create_entry_chunk(string_before.as_str(), payload)
-                    .await
-            }
+            "chunk" => self._create_entry_chunk(&string_before, payload).await,
             "redis" => {
-                self._create_entry_redis(string_before.as_str(), string_after.as_str(), payload)
+                self._create_entry_redis(&string_before, &string_after, payload)
                     .await
             }
             _ => Err(format!(
@@ -53,11 +50,8 @@ impl crate::application::CoLink {
     pub(crate) async fn _sm_read_entry(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let (string_before, macro_type, string_after) = self._parse_macro(key_name);
         match macro_type.as_str() {
-            "chunk" => self._read_entry_chunk(string_before.as_str()).await,
-            "redis" => {
-                self._read_entry_redis(string_before.as_str(), string_after.as_str())
-                    .await
-            }
+            "chunk" => self._read_entry_chunk(&string_before).await,
+            "redis" => self._read_entry_redis(&string_before, &string_after).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -73,18 +67,12 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let (string_before, macro_type, string_after) = self._parse_macro(key_name);
         match macro_type.as_str() {
-            "chunk" => {
-                self._update_entry_chunk(string_before.as_str(), payload)
-                    .await
-            }
+            "chunk" => self._update_entry_chunk(&string_before, payload).await,
             "redis" => {
-                self._update_entry_redis(string_before.as_str(), string_after.as_str(), payload,false)
+                self._update_entry_redis(&string_before, &string_after, payload, false)
                     .await
             }
-            "append" => {
-                self._update_entry_append(string_before.as_str(), payload)
-                    .await
-            }
+            "append" => self._update_entry_append(&string_before, payload).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -96,9 +84,9 @@ impl crate::application::CoLink {
     pub(crate) async fn _sm_delete_entry(&self, key_name: &str) -> Result<String, Error> {
         let (string_before, macro_type, string_after) = self._parse_macro(key_name);
         match macro_type.as_str() {
-            "chunk" => self._delete_entry_chunk(string_before.as_str()).await,
+            "chunk" => self._delete_entry_chunk(&string_before).await,
             "redis" => {
-                self._delete_entry_redis(string_before.as_str(), string_after.as_str())
+                self._delete_entry_redis(&string_before, &string_after)
                     .await
             }
             _ => Err(format!(
