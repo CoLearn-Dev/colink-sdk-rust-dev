@@ -55,9 +55,14 @@ impl crate::application::CoLink {
         address: &str,
         key_name: &str,
         payload: &[u8],
+        is_append: bool,
     ) -> Result<String, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
-        let response = con.set(key_name, payload)?;
+        let response = if is_append {
+            con.append(key_name, payload)?
+        } else {
+            con.set(key_name, payload)?
+        };
         Ok(response)
     }
 

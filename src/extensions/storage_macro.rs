@@ -1,10 +1,11 @@
+mod append;
 mod chunk;
-mod db_redis;
+mod redis;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
-    fn _parse_macro(&self, key_name: &str) -> (String, String, String) {
+    pub(crate) fn _parse_macro(&self, key_name: &str) -> (String, String, String) {
         let split_key = key_name.split(':').collect::<Vec<&str>>();
         let mut macro_type = String::new();
         for s in split_key.iter().rev() {
@@ -77,7 +78,11 @@ impl crate::application::CoLink {
                     .await
             }
             "redis" => {
-                self._update_entry_redis(string_before.as_str(), string_after.as_str(), payload)
+                self._update_entry_redis(string_before.as_str(), string_after.as_str(), payload,false)
+                    .await
+            }
+            "append" => {
+                self._update_entry_append(string_before.as_str(), payload)
                     .await
             }
             _ => Err(format!(
