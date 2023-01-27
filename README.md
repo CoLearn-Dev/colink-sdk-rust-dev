@@ -1,6 +1,6 @@
 # CoLink Rust SDK
 
-CoLink SDK helps both application adnd protocol developers access the functionalities provided by [the CoLink server](https://github.com/CoLearn-Dev/colink-server-dev).
+CoLink SDK helps both application and protocol developers access the functionalities provided by [the CoLink server](https://github.com/CoLearn-Dev/colink-server-dev).
 
 - For *application developers*, CoLink SDK allows them to update storage, manage computation requests, and monitor the CoLink server status.
 - For *protocol developers*, CoLink SDK allows them to write CoLink Extensions that extend the functionality of CoLink to support new protocols.
@@ -15,22 +15,9 @@ colink = "0.2.10"
 ## Getting Started
 You can use this SDK to run protocols, update storage, developing protocol operators. Here is a tutorial for you about how to start a greetings task between two users.
 - Set up CoLink server.
-Please refer to [colinkctl](https://github.com/CoLearn-Dev/colinkctl), and run the command below. For the following steps, we assume you are using the default settings in colinkctl.
-```bash
-colinkctl enable_dev_env
-```
-- Create two new terminals and start protocol operator for two users separately.
-```bash
-cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "1,1p" ~/.colink/user_token.txt)
-```
-```bash
-cargo run --example protocol_greetings -- --addr http://localhost:8080 --jwt $(sed -n "2,2p" ~/.colink/user_token.txt)
-```
-- Run task
-```bash
-cargo run --example user_run_task http://localhost:8080 $(sed -n "1,2p" ~/.colink/user_token.txt)
-```
-- Check the output in protocol operators' terminals
+Please refer to [CoLink Server Setup](https://co-learn.notion.site/CoLink-Server-Setup-aa58e481e36e40cba83a002c1f3bd158)
+- Use Rust SDK.
+Please refer to [CoLink SDK Examples in Rust](https://co-learn.notion.site/CoLink-SDK-Examples-in-Rust-a9b583ac5d764390aeba7293aa63f39d)
 
 ## More examples
 ### Application
