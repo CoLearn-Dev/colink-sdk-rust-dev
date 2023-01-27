@@ -20,8 +20,16 @@ impl crate::application::CoLink {
                 _ => {}
             }
         }
-        let mut data = self.read_entry(key_name).await?;
-        data.append(&mut payload.to_vec());
-        self.update_entry(key_name, &data).await
+        let lock = self.lock(key_name).await?;
+        // use a closure to prevent locking forever caused by errors
+        let res = async {
+            let mut data = self.read_entry(key_name).await?;
+            data.append(&mut payload.to_vec());
+            let res = self.update_entry(key_name, &data).await?;
+            Ok::<String, Error>(res)
+        }
+        .await;
+        self.unlock(lock).await?;
+        res
     }
 }
