@@ -17,6 +17,11 @@ impl crate::application::CoLink {
                         ._update_entry_redis(&string_before, &string_after, payload, true)
                         .await;
                 }
+                "chunk" => {
+                    return self
+                        ._update_entry_chunk(&string_before, payload, true)
+                        .await;
+                }
                 _ => {}
             }
         }

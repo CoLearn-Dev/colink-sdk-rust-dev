@@ -62,6 +62,7 @@ async fn test_storage_macro_append_chunk(
 
     let key_name = "storage_macro_test_append_chunk:$chunk";
     test_append(&cl, key_name, 5e6 as usize).await?;
+    test_append(&cl, key_name, 10 as usize).await?;
 
     Ok(())
 }

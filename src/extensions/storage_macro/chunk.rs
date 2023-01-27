@@ -1,4 +1,3 @@
-use crate::decode_jwt_without_validation;
 use async_recursion::async_recursion;
 
 const CHUNK_SIZE: usize = 1024 * 1024; // use 1MB chunks
@@ -11,6 +10,62 @@ impl crate::application::CoLink {
         let mut offset = 0;
         let mut chunk_id = 0;
         let mut chunk_paths = Vec::new();
+        while offset < payload.len() {
+            let chunk_size = if offset + CHUNK_SIZE > payload.len() {
+                payload.len() - offset
+            } else {
+                CHUNK_SIZE
+            };
+            let response = self
+                .update_entry(
+                    &format!("{}:{}", key_name, chunk_id),
+                    &payload[offset..offset + chunk_size],
+                )
+                .await?;
+            chunk_paths.push(response.split('@').last().unwrap().to_string()); // only store the timestamps
+            offset += chunk_size;
+            chunk_id += 1;
+        }
+        Ok(chunk_paths)
+    }
+
+    #[async_recursion]
+    async fn _append_chunks(
+        &self,
+        chunk_paths: &str,
+        payload: &[u8],
+        key_name: &str,
+    ) -> Result<Vec<String>, Error> {
+        let mut chunk_paths = chunk_paths
+            .split(';')
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
+        let last_chunk_id = chunk_paths.len() - 1;
+        let last_chunk_timestamp = chunk_paths[last_chunk_id].clone();
+        let mut last_chunk = self
+            .read_entry(&format!(
+                "{}::{}:{}@{}",
+                self.get_user_id()?,
+                key_name,
+                last_chunk_id,
+                last_chunk_timestamp
+            ))
+            .await?;
+        let mut offset = 0;
+        let mut chunk_id = chunk_paths.len();
+        if last_chunk.len() < CHUNK_SIZE {
+            let chunk_size = if payload.len() < CHUNK_SIZE - last_chunk.len() {
+                payload.len()
+            } else {
+                CHUNK_SIZE - last_chunk.len()
+            };
+            last_chunk.append(&mut payload[offset..offset + chunk_size].to_vec());
+            let response = self
+                .update_entry(&format!("{}:{}", key_name, last_chunk_id), &last_chunk)
+                .await?;
+            chunk_paths[last_chunk_id] = response.split('@').last().unwrap().to_string();
+            offset += chunk_size;
+        }
         while offset < payload.len() {
             let chunk_size = if offset + CHUNK_SIZE > payload.len() {
                 payload.len() - offset
@@ -73,7 +128,7 @@ impl crate::application::CoLink {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         let metadata_response = self.read_entry(&metadata_key).await?;
         let payload_string = String::from_utf8(metadata_response)?;
-        let user_id = decode_jwt_without_validation(&self.jwt).unwrap().user_id;
+        let user_id = self.get_user_id()?;
 
         // read the chunks into a single vector
         let chunks_paths = payload_string.split(';').collect::<Vec<&str>>();
@@ -92,6 +147,7 @@ impl crate::application::CoLink {
         &self,
         key_name: &str,
         payload: &[u8],
+        is_append: bool,
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         // lock the metadata entry to prevent simultaneous writes
@@ -99,7 +155,14 @@ impl crate::application::CoLink {
         // use a closure to prevent locking forever caused by errors
         let res = async {
             // split payload into chunks and update the chunks
-            let chunk_paths = self._store_chunks(payload, key_name).await?;
+            let chunk_paths = if is_append {
+                let metadata_response = self.read_entry(&metadata_key).await?;
+                let payload_string = String::from_utf8(metadata_response)?;
+                self._append_chunks(&payload_string, payload, key_name)
+                    .await?
+            } else {
+                self._store_chunks(payload, key_name).await?
+            };
             // make sure that the chunk paths are smaller than the maximum entry size
             let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
             // update the metadata entry

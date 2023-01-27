@@ -67,7 +67,10 @@ impl crate::application::CoLink {
     ) -> Result<String, Error> {
         let (string_before, macro_type, string_after) = self._parse_macro(key_name);
         match macro_type.as_str() {
-            "chunk" => self._update_entry_chunk(&string_before, payload).await,
+            "chunk" => {
+                self._update_entry_chunk(&string_before, payload, false)
+                    .await
+            }
             "redis" => {
                 self._update_entry_redis(&string_before, &string_after, payload, false)
                     .await
