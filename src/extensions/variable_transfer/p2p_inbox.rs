@@ -303,41 +303,37 @@ impl crate::application::CoLink {
         if self.vt_p2p_ctx.public_addr.is_none() {
             Err("Remote inbox: not available")?;
         }
-        loop {
-            let inbox_server = self.vt_p2p_ctx.inbox_server.read().await;
-            let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
-            let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
-            if data.is_some() {
-                return Ok(data.unwrap().clone());
-            }
-            drop(data_map);
-            let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-            inbox_server
-                .as_ref()
-                .unwrap()
-                .notification_channels
-                .write()
-                .await
-                .insert((sender.user_id.clone(), key.to_string()), tx);
-            // try again after creating the channel
-            let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
-            let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
-            if data.is_some() {
-                return Ok(data.unwrap().clone());
-            }
-            drop(data_map);
-            drop(inbox_server);
-            rx.recv().await;
-            let inbox_server = self.vt_p2p_ctx.inbox_server.read().await;
-            let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
-            let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
-            if data.is_some() {
-                return Ok(data.unwrap().clone());
-            } else {
-                Err("Fail to retrieve data from the inbox")?
-            }
-            drop(data_map);
-            drop(inbox_server);
+        let inbox_server = self.vt_p2p_ctx.inbox_server.read().await;
+        let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
+        let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
+        if data.is_some() {
+            return Ok(data.unwrap().clone());
+        }
+        drop(data_map);
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
+        inbox_server
+            .as_ref()
+            .unwrap()
+            .notification_channels
+            .write()
+            .await
+            .insert((sender.user_id.clone(), key.to_string()), tx);
+        // try again after creating the channel
+        let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
+        let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
+        if data.is_some() {
+            return Ok(data.unwrap().clone());
+        }
+        drop(data_map);
+        drop(inbox_server);
+        rx.recv().await;
+        let inbox_server = self.vt_p2p_ctx.inbox_server.read().await;
+        let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
+        let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
+        if data.is_some() {
+            return Ok(data.unwrap().clone());
+        } else {
+            Err("Fail to retrieve data from the inbox")?
         }
     }
 }
