@@ -1,14 +1,18 @@
 use colink::{
     decode_jwt_without_validation,
     extensions::instant_server::{InstantRegistry, InstantServer},
-    generate_user, prepare_import_user_signature, CoLink,
-    SubscriptionMessage
+    generate_user, prepare_import_user_signature, CoLink, SubscriptionMessage,
 };
 
-async fn user_remote_storage_fn(jwt_a:&str,jwt_b:&str,addr:&str,msg:&str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+async fn user_remote_storage_fn(
+    jwt_a: &str,
+    jwt_b: &str,
+    addr: &str,
+    msg: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let user_id_a = decode_jwt_without_validation(jwt_a).unwrap().user_id;
     let user_id_b = decode_jwt_without_validation(jwt_b).unwrap().user_id;
-    
+
     let cl = CoLink::new(addr, jwt_a);
     // create
     cl.remote_storage_create(
@@ -76,7 +80,9 @@ async fn user_remote_storage_fn(jwt_a:&str,jwt_b:&str,addr:&str,msg:&str) -> Res
     Ok(())
 }
 
-async fn gen_new_uesr(cl:&CoLink) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
+async fn gen_new_uesr(
+    cl: &CoLink,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let expiration_timestamp = chrono::Utc::now().timestamp() + 86400 * 31;
     let (pk, sk) = generate_user();
     let core_pub_key = cl.request_info().await?.core_public_key;
@@ -89,18 +95,19 @@ async fn gen_new_uesr(cl:&CoLink) -> Result<String, Box<dyn std::error::Error + 
 }
 
 #[tokio::test]
-async fn test_user_remote_storage() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+async fn test_user_remote_storage() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>
+{
     let _ir = InstantRegistry::new();
     let is = InstantServer::new();
     let cl = is.get_colink();
     let core_addr = cl.get_core_addr()?;
 
-    let user_a_jwt=gen_new_uesr(&cl).await?;
-    let user_b_jwt=gen_new_uesr(&cl).await?;
+    let user_a_jwt = gen_new_uesr(&cl).await?;
+    let user_b_jwt = gen_new_uesr(&cl).await?;
 
-    let test_msg="hello";
+    let test_msg = "hello";
 
-    user_remote_storage_fn(&user_a_jwt,&user_b_jwt,&core_addr,test_msg).await?;
+    user_remote_storage_fn(&user_a_jwt, &user_b_jwt, &core_addr, test_msg).await?;
 
     Ok(())
 }

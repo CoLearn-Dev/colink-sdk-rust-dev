@@ -2,9 +2,14 @@ use colink::{
     extensions::instant_server::{InstantRegistry, InstantServer},
     generate_user, prepare_import_user_signature, CoLink,
 };
-use std::{thread,sync::{Arc,Mutex}};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+};
 
-async fn user_lock_fn(cl:&CoLink) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+async fn user_lock_fn(
+    cl: &CoLink,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     cl.update_entry("example_lock_counter", &0_i32.to_le_bytes())
         .await
         .unwrap();
@@ -64,7 +69,7 @@ async fn test_user_lock() -> Result<(), Box<dyn std::error::Error + Send + Sync 
         .import_user(&pk, signature_timestamp, expiration_timestamp, &sig)
         .await?;
 
-    let cl=CoLink::new(&core_addr,&user_jwt);
+    let cl = CoLink::new(&core_addr, &user_jwt);
     user_lock_fn(&cl).await?;
 
     Ok(())
