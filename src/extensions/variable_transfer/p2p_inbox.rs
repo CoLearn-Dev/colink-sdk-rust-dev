@@ -331,7 +331,7 @@ impl crate::application::CoLink {
         let data_map = inbox_server.as_ref().unwrap().data_map.read().await;
         let data = data_map.get(&(sender.user_id.clone(), key.to_string()));
         if data.is_some() {
-            return Ok(data.unwrap().clone());
+            Ok(data.unwrap().clone())
         } else {
             Err("Fail to retrieve data from the inbox")?
         }
