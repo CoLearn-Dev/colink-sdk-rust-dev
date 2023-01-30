@@ -1,21 +1,18 @@
 use colink::{
-    decode_jwt_without_validation,
     extensions::instant_server::{InstantRegistry, InstantServer},
-    generate_user, prepare_import_user_signature, CoLink, SubscriptionMessage,
+    CoLink, SubscriptionMessage,
 };
 
 async fn user_remote_storage_fn(
-    jwt_a: &str,
-    jwt_b: &str,
-    addr: &str,
+    cla: &CoLink,
+    clb: &CoLink,
     msg: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let user_id_a = decode_jwt_without_validation(jwt_a).unwrap().user_id;
-    let user_id_b = decode_jwt_without_validation(jwt_b).unwrap().user_id;
+    let user_id_a = cla.get_user_id().unwrap();
+    let user_id_b = clb.get_user_id().unwrap();
 
-    let cl = CoLink::new(addr, jwt_a);
     // create
-    cl.remote_storage_create(
+    cla.remote_storage_create(
         &[user_id_b.clone()],
         "remote_storage_demo",
         msg.as_bytes(),
@@ -23,7 +20,6 @@ async fn user_remote_storage_fn(
     )
     .await?;
 
-    let clb = CoLink::new(addr, jwt_b);
     let data = clb
         .read_or_wait(&format!(
             "_remote_storage:private:{}:remote_storage_demo",
@@ -34,7 +30,7 @@ async fn user_remote_storage_fn(
     assert!(String::from_utf8_lossy(&data).eq(msg));
 
     // read
-    let data = cl
+    let data = cla
         .remote_storage_read(&user_id_b, "remote_storage_demo", false, "")
         .await?;
     // println!("{}", String::from_utf8_lossy(&data));
@@ -48,7 +44,7 @@ async fn user_remote_storage_fn(
         )
         .await?;
 
-    cl.remote_storage_update(
+    cla.remote_storage_update(
         &[user_id_b.clone()],
         "remote_storage_demo",
         format!("update {}", msg).as_bytes(),
@@ -67,7 +63,7 @@ async fn user_remote_storage_fn(
     }
 
     // delete
-    cl.remote_storage_delete(&[user_id_b.clone()], "remote_storage_demo", false)
+    cla.remote_storage_delete(&[user_id_b.clone()], "remote_storage_demo", false)
         .await?;
 
     let data = subscriber.get_next().await?;
@@ -80,34 +76,18 @@ async fn user_remote_storage_fn(
     Ok(())
 }
 
-async fn gen_new_uesr(
-    cl: &CoLink,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let expiration_timestamp = chrono::Utc::now().timestamp() + 86400 * 31;
-    let (pk, sk) = generate_user();
-    let core_pub_key = cl.request_info().await?.core_public_key;
-    let (signature_timestamp, sig) =
-        prepare_import_user_signature(&pk, &sk, &core_pub_key, expiration_timestamp);
-    let user_jwt = cl
-        .import_user(&pk, signature_timestamp, expiration_timestamp, &sig)
-        .await?;
-    Ok(user_jwt)
-}
-
 #[tokio::test]
 async fn test_user_remote_storage() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>
 {
     let _ir = InstantRegistry::new();
-    let is = InstantServer::new();
-    let cl = is.get_colink();
-    let core_addr = cl.get_core_addr()?;
-
-    let user_a_jwt = gen_new_uesr(&cl).await?;
-    let user_b_jwt = gen_new_uesr(&cl).await?;
+    let isa = InstantServer::new();
+    let isb = InstantServer::new();
+    let cla = isa.get_colink().switch_to_generated_user().await?;
+    let clb = isb.get_colink().switch_to_generated_user().await?;
 
     let test_msg = "hello";
 
-    user_remote_storage_fn(&user_a_jwt, &user_b_jwt, &core_addr, test_msg).await?;
+    user_remote_storage_fn(&cla, &clb, test_msg).await?;
 
     Ok(())
 }

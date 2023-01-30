@@ -1,6 +1,6 @@
 use colink::{
     extensions::instant_server::{InstantRegistry, InstantServer},
-    generate_user, prepare_import_user_signature, CoLink,
+    CoLink,
 };
 use std::{
     sync::{Arc, Mutex},
@@ -56,20 +56,7 @@ async fn user_lock_fn(
 async fn test_user_lock() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let _ir = InstantRegistry::new();
     let is = InstantServer::new();
-    let cl = is.get_colink();
-    let core_addr = cl.get_core_addr()?;
-
-    let expiration_timestamp = chrono::Utc::now().timestamp() + 86400 * 31;
-    let (pk, sk) = generate_user();
-    let core_pub_key = cl.request_info().await?.core_public_key;
-    let (signature_timestamp, sig) =
-        prepare_import_user_signature(&pk, &sk, &core_pub_key, expiration_timestamp);
-
-    let user_jwt = cl
-        .import_user(&pk, signature_timestamp, expiration_timestamp, &sig)
-        .await?;
-
-    let cl = CoLink::new(&core_addr, &user_jwt);
+    let cl = is.get_colink().switch_to_generated_user().await?;
     user_lock_fn(&cl).await?;
 
     Ok(())
