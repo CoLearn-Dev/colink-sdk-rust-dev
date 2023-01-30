@@ -608,6 +608,11 @@ impl CoLinkSubscriber {
                 .unwrap()
                 .xack(&self.queue_name, &self.queue_name, &[id])
                 .await?;
+            self.redis_connection
+                .as_mut()
+                .unwrap()
+                .xdel(&self.queue_name, &[id])
+                .await?;
             Ok(data)
         } else {
             let delivery = self
