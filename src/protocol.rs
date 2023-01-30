@@ -1,12 +1,6 @@
 use crate::{application::*, utils::get_path_timestamp};
 pub use async_trait::async_trait;
 use clap::Parser;
-use futures_lite::stream::StreamExt;
-use lapin::{
-    options::{BasicAckOptions, BasicConsumeOptions, BasicQosOptions},
-    types::FieldTable,
-    Connection, ConnectionProperties, Consumer,
-};
 use prost::Message;
 use rand::Rng;
 use std::{
@@ -14,7 +8,7 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use tracing::{debug, error};
+use tracing::error;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -50,12 +44,9 @@ impl CoLinkProtocol {
     }
 
     pub async fn start(&self) -> Result<(), Error> {
-        let mut consumer = self.get_mq_consumer().await?;
-        while let Some(delivery) = consumer.next().await {
-            let delivery = delivery.expect("error in consumer");
-            let data = String::from_utf8_lossy(&delivery.data);
-            debug!("Received [{}]", data);
-            let message: SubscriptionMessage = prost::Message::decode(&*delivery.data).unwrap();
+        let mut subscriber = self.get_subscriber().await?;
+        while let Ok(data) = subscriber.get_next().await {
+            let message: SubscriptionMessage = prost::Message::decode(&*data).unwrap();
             if message.change_type != "delete" {
                 let task_id: Task = prost::Message::decode(&*message.payload).unwrap();
                 let res = self
@@ -74,7 +65,6 @@ impl CoLinkProtocol {
                     Err(e) => error!("Pull Task Error: {}.", e),
                 }
             }
-            delivery.ack(BasicAckOptions::default()).await.unwrap();
         }
 
         Ok(())
@@ -115,7 +105,7 @@ impl CoLinkProtocol {
         Ok(())
     }
 
-    async fn get_mq_consumer(&self) -> Result<Consumer, Error> {
+    async fn get_subscriber(&self) -> Result<CoLinkSubscriber, Error> {
         let operator_mq_key = format!("_internal:protocols:{}:operator_mq", self.protocol_and_role);
         let lock = self.cl.lock(&operator_mq_key).await?;
         let res = self
@@ -172,19 +162,8 @@ impl CoLinkProtocol {
         };
         self.cl.unlock(lock).await?;
 
-        let mq_addr = self.cl.request_info().await?.mq_uri;
-        let mq = Connection::connect(&mq_addr, ConnectionProperties::default()).await?;
-        let channel = mq.create_channel().await?;
-        channel.basic_qos(1, BasicQosOptions::default()).await?;
-        let consumer = channel
-            .basic_consume(
-                &queue_name,
-                "",
-                BasicConsumeOptions::default(),
-                FieldTable::default(),
-            )
-            .await?;
-        Ok(consumer)
+        let subscriber = self.cl.new_subscriber(&queue_name).await?;
+        Ok(subscriber)
     }
 }
 
