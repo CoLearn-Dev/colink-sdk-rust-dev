@@ -147,7 +147,6 @@ impl crate::application::CoLink {
         &self,
         key_name: &str,
         payload: &[u8],
-        is_append: bool,
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         // lock the metadata entry to prevent simultaneous writes
@@ -155,14 +154,37 @@ impl crate::application::CoLink {
         // use a closure to prevent locking forever caused by errors
         let res = async {
             // split payload into chunks and update the chunks
-            let chunk_paths = if is_append {
-                let metadata_response = self.read_entry(&metadata_key).await?;
-                let payload_string = String::from_utf8(metadata_response)?;
-                self._append_chunks(&payload_string, payload, key_name)
-                    .await?
-            } else {
-                self._store_chunks(payload, key_name).await?
-            };
+            let chunk_paths = self._store_chunks(payload, key_name).await?;
+            // make sure that the chunk paths are smaller than the maximum entry size
+            let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
+            // update the metadata entry
+            let response = self
+                .update_entry(&metadata_key, &chunk_paths_string.into_bytes())
+                .await?;
+            Ok::<String, Error>(response)
+        }
+        .await;
+        self.unlock(lock_token).await?;
+        res
+    }
+
+    #[async_recursion]
+    pub(crate) async fn _append_entry_chunk(
+        &self,
+        key_name: &str,
+        payload: &[u8],
+    ) -> Result<String, Error> {
+        let metadata_key = format!("{}:chunk_metadata", key_name);
+        // lock the metadata entry to prevent simultaneous writes
+        let lock_token = self.lock(&metadata_key).await?;
+        // use a closure to prevent locking forever caused by errors
+        let res = async {
+            // split payload into chunks and update the chunks
+            let metadata_response = self.read_entry(&metadata_key).await?;
+            let payload_string = String::from_utf8(metadata_response)?;
+            let chunk_paths = self
+                ._append_chunks(&payload_string, payload, key_name)
+                .await?;
             // make sure that the chunk paths are smaller than the maximum entry size
             let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
             // update the metadata entry

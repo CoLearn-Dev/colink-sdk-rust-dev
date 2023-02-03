@@ -55,15 +55,23 @@ impl crate::application::CoLink {
         address: &str,
         key_name: &str,
         payload: &[u8],
-        is_append: bool,
     ) -> Result<String, Error> {
         let mut con = self._get_con_from_stored_credentials(address).await?;
-        let response = if is_append {
-            con.append::<&str, &[u8], i32>(key_name, payload)?
-                .to_string()
-        } else {
-            con.set(key_name, payload)?
-        };
+        let response = con.set(key_name, payload)?;
+        Ok(response)
+    }
+
+    #[async_recursion]
+    pub(crate) async fn _append_entry_redis(
+        &self,
+        address: &str,
+        key_name: &str,
+        payload: &[u8],
+    ) -> Result<String, Error> {
+        let mut con = self._get_con_from_stored_credentials(address).await?;
+        let response = con
+            .append::<&str, &[u8], i32>(key_name, payload)?
+            .to_string();
         Ok(response)
     }
 

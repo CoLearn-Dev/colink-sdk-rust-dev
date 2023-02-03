@@ -14,12 +14,12 @@ impl crate::application::CoLink {
             match macro_type.as_str() {
                 "redis" => {
                     return self
-                        ._update_entry_redis(&string_before, &string_after, payload, true)
+                        ._append_entry_redis(&string_before, &string_after, payload)
                         .await;
                 }
                 "chunk" => {
                     return self
-                        ._update_entry_chunk(&string_before, payload, true)
+                        ._append_entry_chunk(&string_before, payload)
                         .await;
                 }
                 _ => {}
