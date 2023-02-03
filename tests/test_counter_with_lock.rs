@@ -1,4 +1,5 @@
-use colink::extensions::instant_server::{InstantRegistry, InstantServer};
+mod common;
+use common::*;
 use std::{
     sync::{Arc, Mutex},
     thread,
@@ -7,9 +8,7 @@ use std::{
 #[tokio::test]
 async fn test_counter_with_lock() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>
 {
-    let _ir = InstantRegistry::new();
-    let is = InstantServer::new();
-    let cl = is.get_colink().switch_to_generated_user().await?;
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
 
     cl.update_entry("example_lock_counter", &0_i32.to_le_bytes())
         .await

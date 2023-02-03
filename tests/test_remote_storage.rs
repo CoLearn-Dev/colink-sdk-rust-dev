@@ -1,15 +1,11 @@
-use colink::{
-    extensions::instant_server::{InstantRegistry, InstantServer},
-    SubscriptionMessage,
-};
+mod common;
+use colink::SubscriptionMessage;
+use common::*;
 
 #[tokio::test]
 async fn test_remote_storage() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let _ir = InstantRegistry::new();
-    let is_a = InstantServer::new();
-    let is_b = InstantServer::new();
-    let cl_a = is_a.get_colink().switch_to_generated_user().await?;
-    let cl_b = is_b.get_colink().switch_to_generated_user().await?;
+    let (_ir, _iss, mut cls) = set_up_test_env(2).await?;
+    let (cl_a, cl_b) = (cls.pop().unwrap(), cls.pop().unwrap());
     let msg = "hello";
     let user_id_a = cl_a.get_user_id().unwrap();
     let user_id_b = cl_b.get_user_id().unwrap();
