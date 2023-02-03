@@ -18,9 +18,7 @@ impl crate::application::CoLink {
                         .await;
                 }
                 "chunk" => {
-                    return self
-                        ._append_entry_chunk(&string_before, payload)
-                        .await;
+                    return self._append_entry_chunk(&string_before, payload).await;
                 }
                 _ => {}
             }
