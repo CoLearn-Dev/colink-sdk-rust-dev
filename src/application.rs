@@ -549,7 +549,7 @@ pub struct CoLinkInfo {
 }
 
 pub struct CoLinkSubscriber {
-    mq_uri: String,
+    mq_type: i32, // 0 for rabbitmq, 1 for redis stream
     queue_name: String,
     rabbitmq_consumer: Option<lapin::Consumer>,
     redis_connection: Option<redis::aio::Connection>,
@@ -562,7 +562,7 @@ impl CoLinkSubscriber {
             let client = redis::Client::open(mq_uri)?;
             let con = client.get_async_connection().await?;
             Ok(Self {
-                mq_uri: mq_uri.to_string(),
+                mq_type: 1,
                 queue_name: queue_name.to_string(),
                 rabbitmq_consumer: None,
                 redis_connection: Some(con),
@@ -579,7 +579,7 @@ impl CoLinkSubscriber {
                 )
                 .await?;
             Ok(Self {
-                mq_uri: mq_uri.to_string(),
+                mq_type: 0,
                 queue_name: queue_name.to_string(),
                 rabbitmq_consumer: Some(consumer),
                 redis_connection: None,
@@ -588,8 +588,18 @@ impl CoLinkSubscriber {
     }
 
     pub async fn get_next(&mut self) -> Result<Vec<u8>, Error> {
-        let uri_parsed = url::Url::parse(&self.mq_uri)?;
-        if uri_parsed.scheme().starts_with("redis") {
+        if self.mq_type == 0 {
+            let delivery = self
+                .rabbitmq_consumer
+                .as_mut()
+                .unwrap()
+                .next()
+                .await
+                .expect("error in consumer");
+            let delivery = delivery.expect("error in consumer");
+            delivery.ack(BasicAckOptions::default()).await?;
+            Ok(delivery.data)
+        } else if self.mq_type == 1 {
             let opts = StreamReadOptions::default()
                 .group(&self.queue_name, uuid::Uuid::new_v4().to_string())
                 .block(0)
@@ -615,18 +625,7 @@ impl CoLinkSubscriber {
                 .await?;
             Ok(data)
         } else {
-            let delivery = self
-                .rabbitmq_consumer
-                .as_mut()
-                .unwrap()
-                .next()
-                .await
-                .expect("error in consumer");
-            let delivery = delivery.expect("error in consumer");
-            // let data = String::from_utf8_lossy(&delivery.data);
-            // debug!("CoLinkSubscriber Received [{}]", data);
-            delivery.ack(BasicAckOptions::default()).await?;
-            Ok(delivery.data)
+            Err("mq type is not supported.")?
         }
     }
 }
