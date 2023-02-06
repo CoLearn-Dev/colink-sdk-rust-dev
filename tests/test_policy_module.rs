@@ -1,11 +1,10 @@
-use colink::extensions::instant_server::{InstantRegistry, InstantServer};
+mod common;
 use colink::extensions::policy_module::{Action, Rule, TaskFilter};
+use common::*;
 
 #[tokio::test]
 async fn test_policy_module() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let _ir = InstantRegistry::new();
-    let is = InstantServer::new();
-    let cl = is.get_colink().switch_to_generated_user().await?;
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
     //default policy
     let res = cl.policy_module_get_rules().await?;
     assert!(res.len() == 1);

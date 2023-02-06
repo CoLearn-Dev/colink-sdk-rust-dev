@@ -1,8 +1,7 @@
 #![allow(unused_variables)]
-use colink::{
-    extensions::instant_server::{InstantRegistry, InstantServer},
-    CoLink, Participant, ProtocolEntry,
-};
+mod common;
+use colink::{CoLink, Participant, ProtocolEntry};
+use common::*;
 
 struct Initiator;
 #[colink::async_trait]
@@ -55,19 +54,13 @@ impl ProtocolEntry for Receiver {
 
 #[tokio::test]
 async fn test_vt() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let ir = InstantRegistry::new();
-    let mut iss = vec![];
-    let mut cls = vec![];
-    for i in 0..8 {
-        let is = InstantServer::new();
-        let cl = is.get_colink().switch_to_generated_user().await?;
+    let (ir, iss, cls) = set_up_test_env(8).await?;
+    for cl in &cls {
         colink::protocol_attach!(
             cl,
             ("variable_transfer_test:initiator", Initiator),
             ("variable_transfer_test:receiver", Receiver)
         );
-        iss.push(is);
-        cls.push(cl);
     }
     let mut participants = vec![Participant {
         user_id: cls[0].get_user_id()?,
