@@ -59,12 +59,12 @@ impl crate::application::CoLink {
             } else {
                 CHUNK_SIZE - last_chunk.len()
             };
-            last_chunk.append(&mut payload[offset..offset + chunk_size].to_vec());
+            last_chunk.append(&mut payload[..chunk_size].to_vec());
             let response = self
                 .update_entry(&format!("{}:{}", key_name, last_chunk_id), &last_chunk)
                 .await?;
             chunk_paths[last_chunk_id] = response.split('@').last().unwrap().to_string();
-            offset += chunk_size;
+            offset = chunk_size;
         }
         while offset < payload.len() {
             let chunk_size = if offset + CHUNK_SIZE > payload.len() {
