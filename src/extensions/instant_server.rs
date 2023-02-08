@@ -113,13 +113,13 @@ impl InstantServer {
             format!("http://127.0.0.1:{}", port),
             "--inter-core-reverse-mode".to_string(),
         ];
-        if mq_uri.is_some() {
+        if let Some(mq_uri) = mq_uri {
             args.push("--mq-uri".to_string());
-            args.push(mq_uri.unwrap());
+            args.push(mq_uri);
         }
-        if mq_api.is_some() {
+        if let Some(mq_api) = mq_api {
             args.push("--mq-api".to_string());
-            args.push(mq_api.unwrap());
+            args.push(mq_api);
         }
         let child = Command::new(program)
             .args(&args)
