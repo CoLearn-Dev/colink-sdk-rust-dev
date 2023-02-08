@@ -6,8 +6,6 @@ use std::{
 use tracing::debug;
 
 const CORE_ADDR: &str = "127.0.0.1";
-const MQ_AMQP: &str = "amqp://guest:guest@localhost:5672";
-const MQ_API: &str = "http://guest:guest@localhost:15672/api";
 const MQ_PREFIX: &str = "colink-test";
 const USER_NUM: [usize; 11] = [2, 2, 2, 2, 2, 3, 3, 4, 4, 5, 5];
 
@@ -130,10 +128,6 @@ fn start_core(port: u16) -> Child {
             CORE_ADDR,
             "--port",
             &port.to_string(),
-            "--mq-amqp",
-            MQ_AMQP,
-            "--mq-api",
-            MQ_API,
             "--mq-prefix",
             MQ_PREFIX,
         ])
