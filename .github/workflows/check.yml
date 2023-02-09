@@ -52,7 +52,11 @@ jobs:
         run: bash download-server.sh
         working-directory: tests
       - name: Run tests
+        if: ${{ matrix.mq != "standalone" }}
         env:
           COLINK_SERVER_MQ_URI: ${{ matrix.mq_uri }}
           COLINK_SERVER_MQ_API: ${{ matrix.mq_api }}
+        run: cargo test
+      - name: Run tests (standalone)
+        if: ${{ matrix.mq == "standalone" }}
         run: cargo test
