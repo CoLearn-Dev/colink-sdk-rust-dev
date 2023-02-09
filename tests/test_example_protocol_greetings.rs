@@ -13,6 +13,14 @@ struct KilledWhenDrop(Child);
 
 impl Drop for KilledWhenDrop {
     fn drop(&mut self) {
+        Command::new("pkill")
+            .arg("-9")
+            .arg("-P")
+            .arg(&self.0.id().to_string())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
         self.0.kill().unwrap()
     }
 }
