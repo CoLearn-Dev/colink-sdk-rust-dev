@@ -86,16 +86,16 @@ impl InstantServer {
                             )
                             .await
                             .unwrap();
+                            if mq_api.is_some() {
+                                let res = reqwest::get(&mq_api.clone().unwrap()).await.unwrap();
+                                assert!(res.status() == hyper::StatusCode::OK);
+                            }
                         } else if mq_uri.starts_with("redis") {
                             let client = redis::Client::open(mq_uri).unwrap();
                             let _con = client.get_async_connection().await.unwrap();
                         } else {
                             panic!("mq_uri({}) is not supported.", mq_uri);
                         }
-                    }
-                    if mq_api.is_some() {
-                        let res = reqwest::get(&mq_api.clone().unwrap()).await.unwrap();
-                        assert!(res.status() == hyper::StatusCode::OK);
                     }
                 });
             (mq_uri, mq_api)
