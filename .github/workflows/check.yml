@@ -22,14 +22,18 @@ jobs:
             mq_api: "http://guest:guest@localhost:15672/api"
           - mq: redis
             docker_image: "redis"
-            mq_uri: "redis://localhost"
+            mq_uri: "redis://localhost:16379"
     services:
       mq:
         image: ${{ matrix.docker_image }}
         ports:
           - 5672:5672   # rabbitmq
           - 15672:15672 # rabbitmq
-          - 6379:6379   # redis
+          - 16379:6379  # redis
+      redis:  # for storage macro
+        image: redis
+        ports:
+          - 6379:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v3
