@@ -1,6 +1,6 @@
 [package]
 name = "colink"
-version = "0.2.11"
+version = "0.3.0"
 edition = "2021"
 description = "CoLink Rust SDK"
 license = "MIT"
@@ -23,7 +23,7 @@ lapin = "2.1"
 prost = "0.10"
 rand = { version = "0.8", features = ["std_rng"] }
 rcgen = { version = "0.10", optional = true }
-redis = { version = "0.22", features = ["tokio-comp"], optional = true }
+redis = { version = "0.22", features = ["tokio-comp"] }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots"], optional = true }
 secp256k1 = { version = "0.25", features = ["rand-std"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -34,6 +34,7 @@ tokio-rustls = { version = "0.23", optional = true }
 tonic = { version = "0.7", features = ["tls", "tls-roots"] }
 tracing = "0.1"
 tracing-subscriber = "0.2"
+url = "2.2"
 uuid = { version = "0.8", features = ["v4"] }
 
 [build-dependencies]
@@ -48,4 +49,4 @@ variable_transfer = ["extensions", "remote_storage", "hyper", "jsonwebtoken", "r
 registry = []
 policy_module = []
 instant_server = ["reqwest"]
-storage_macro = ["async-recursion", "redis"]
+storage_macro = ["async-recursion"]

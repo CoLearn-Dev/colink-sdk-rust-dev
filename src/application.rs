@@ -4,7 +4,11 @@ use futures_lite::stream::StreamExt;
 use lapin::{
     options::{BasicAckOptions, BasicConsumeOptions},
     types::FieldTable,
-    Connection, ConnectionProperties, Consumer,
+    ConnectionProperties,
+};
+use redis::{
+    streams::{StreamReadOptions, StreamReadReply},
+    AsyncCommands, FromRedisValue,
 };
 use secp256k1::Secp256k1;
 use serde::{Deserialize, Serialize};
@@ -544,32 +548,91 @@ pub struct CoLinkInfo {
     pub version: String,
 }
 
+pub enum CoLinkMQType {
+    RabbitMQ,
+    RedisStream,
+}
 pub struct CoLinkSubscriber {
-    consumer: Consumer,
+    mq_type: CoLinkMQType,
+    queue_name: String,
+    rabbitmq_consumer: Option<lapin::Consumer>,
+    redis_connection: Option<redis::aio::Connection>,
 }
 
 impl CoLinkSubscriber {
     pub async fn new(mq_uri: &str, queue_name: &str) -> Result<Self, Error> {
-        let mq = Connection::connect(mq_uri, ConnectionProperties::default()).await?;
-        let channel = mq.create_channel().await?;
-        let consumer = channel
-            .basic_consume(
-                queue_name,
-                "",
-                BasicConsumeOptions::default(),
-                FieldTable::default(),
-            )
-            .await?;
-        Ok(Self { consumer })
+        let uri_parsed = url::Url::parse(mq_uri)?;
+        if uri_parsed.scheme().starts_with("redis") {
+            let client = redis::Client::open(mq_uri)?;
+            let con = client.get_async_connection().await?;
+            Ok(Self {
+                mq_type: CoLinkMQType::RedisStream,
+                queue_name: queue_name.to_string(),
+                rabbitmq_consumer: None,
+                redis_connection: Some(con),
+            })
+        } else {
+            let mq = lapin::Connection::connect(mq_uri, ConnectionProperties::default()).await?;
+            let channel = mq.create_channel().await?;
+            let consumer = channel
+                .basic_consume(
+                    queue_name,
+                    "",
+                    BasicConsumeOptions::default(),
+                    FieldTable::default(),
+                )
+                .await?;
+            Ok(Self {
+                mq_type: CoLinkMQType::RabbitMQ,
+                queue_name: queue_name.to_string(),
+                rabbitmq_consumer: Some(consumer),
+                redis_connection: None,
+            })
+        }
     }
 
     pub async fn get_next(&mut self) -> Result<Vec<u8>, Error> {
-        let delivery = self.consumer.next().await.expect("error in consumer");
-        let delivery = delivery.expect("error in consumer");
-        let data = String::from_utf8_lossy(&delivery.data);
-        debug!("CoLinkSubscriber Received [{}]", data);
-        delivery.ack(BasicAckOptions::default()).await?;
-        Ok(delivery.data)
+        match self.mq_type {
+            CoLinkMQType::RabbitMQ => {
+                let delivery = self
+                    .rabbitmq_consumer
+                    .as_mut()
+                    .unwrap()
+                    .next()
+                    .await
+                    .expect("error in consumer");
+                let delivery = delivery.expect("error in consumer");
+                delivery.ack(BasicAckOptions::default()).await?;
+                Ok(delivery.data)
+            }
+            CoLinkMQType::RedisStream => {
+                let opts = StreamReadOptions::default()
+                    .group(&self.queue_name, uuid::Uuid::new_v4().to_string())
+                    .block(0)
+                    .count(1);
+                let res: StreamReadReply = self
+                    .redis_connection
+                    .as_mut()
+                    .unwrap()
+                    .xread_options(&[&self.queue_name], &[">"], &opts)
+                    .await?;
+                let id = &res.keys[0].ids[0].id;
+                let data: Vec<u8> = FromRedisValue::from_redis_value(
+                    res.keys[0].ids[0].map.get("payload").unwrap(),
+                )?;
+                self.redis_connection
+                    .as_mut()
+                    .unwrap()
+                    .xack(&self.queue_name, &self.queue_name, &[id])
+                    .await?;
+                self.redis_connection
+                    .as_mut()
+                    .unwrap()
+                    .xdel(&self.queue_name, &[id])
+                    .await?;
+                Ok(data)
+            }
+        }
     }
 }
 

@@ -12,13 +12,25 @@ jobs:
     defaults:
       run:
         shell: bash
+    strategy:
+      matrix:
+        mq: [standalone, rabbitmq, redis]
+        include:
+          - mq: rabbitmq
+            docker_image: "rabbitmq:3.8-management"
+            mq_uri: "amqp://guest:guest@localhost"
+            mq_api: "http://guest:guest@localhost:15672/api"
+          - mq: redis
+            docker_image: "redis"
+            mq_uri: "redis://localhost:16379"
     services:
-      rabbitmq:
-        image: rabbitmq:3.8-management
+      mq:
+        image: ${{ matrix.docker_image }}
         ports:
-          - 5672:5672
-          - 15672:15672
-      redis:
+          - 5672:5672   # rabbitmq
+          - 15672:15672 # rabbitmq
+          - 16379:6379  # redis
+      redis:  # for storage macro
         image: redis
         ports:
           - 6379:6379
@@ -44,4 +56,11 @@ jobs:
         run: bash download-server.sh
         working-directory: tests
       - name: Run tests
-        run: cargo test
+        if: ${{ matrix.mq != 'standalone' }}
+        env:
+          COLINK_SERVER_MQ_URI: ${{ matrix.mq_uri }}
+          COLINK_SERVER_MQ_API: ${{ matrix.mq_api }}
+        run: cargo test test_main # remove test_main after updating protocols(policy module, remote storage)
+      - name: Run tests (standalone)
+        if: ${{ matrix.mq == 'standalone' }}
+        run: cargo test test_main # remove test_main after updating protocols(policy module, remote storage)

@@ -48,7 +48,7 @@ impl InstantServer {
                 .arg("bash -c \"$(curl -fsSL https://raw.githubusercontent.com/CoLearn-Dev/colinkctl/main/install_colink.sh)\"")
                 .env("COLINK_INSTALL_SERVER_ONLY", "true")
                 .env("COLINK_INSTALL_SILENT", "true")
-                .env("COLINK_SERVER_VERSION", "v0.2.9")
+                .env("COLINK_SERVER_VERSION", "v0.3.0")
                 .status()
                 .unwrap();
         }
@@ -61,48 +61,68 @@ impl InstantServer {
             .join("instant_servers")
             .join(instant_server_id.clone());
         std::fs::create_dir_all(&working_dir).unwrap();
-        let mq_amqp = if std::env::var("COLINK_SERVER_MQ_AMQP").is_ok() {
-            std::env::var("COLINK_SERVER_MQ_AMQP").unwrap()
+        let mq_uri = if std::env::var("COLINK_SERVER_MQ_URI").is_ok() {
+            Some(std::env::var("COLINK_SERVER_MQ_URI").unwrap())
         } else {
-            "amqp://guest:guest@localhost:5672".to_string()
+            None
         };
         let mq_api = if std::env::var("COLINK_SERVER_MQ_API").is_ok() {
-            std::env::var("COLINK_SERVER_MQ_API").unwrap()
+            Some(std::env::var("COLINK_SERVER_MQ_API").unwrap())
         } else {
-            "http://guest:guest@localhost:15672/api".to_string()
+            None
         };
-        let (mq_amqp, mq_api) = std::thread::spawn(move || {
+        let (mq_uri, mq_api) = std::thread::spawn(move || {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
                 .block_on(async {
-                    let res = reqwest::get(&mq_api).await.unwrap();
-                    assert!(res.status() == hyper::StatusCode::OK);
-                    lapin::Connection::connect(&mq_amqp, lapin::ConnectionProperties::default())
-                        .await
-                        .unwrap();
+                    if mq_uri.is_some() {
+                        let mq_uri = mq_uri.clone().unwrap();
+                        if mq_uri.starts_with("amqp") {
+                            lapin::Connection::connect(
+                                &mq_uri,
+                                lapin::ConnectionProperties::default(),
+                            )
+                            .await
+                            .unwrap();
+                            if mq_api.is_some() {
+                                let res = reqwest::get(&mq_api.clone().unwrap()).await.unwrap();
+                                assert!(res.status() == hyper::StatusCode::OK);
+                            }
+                        } else if mq_uri.starts_with("redis") {
+                            let client = redis::Client::open(mq_uri).unwrap();
+                            let _con = client.get_async_connection().await.unwrap();
+                        } else {
+                            panic!("mq_uri({}) is not supported.", mq_uri);
+                        }
+                    }
                 });
-            (mq_amqp, mq_api)
+            (mq_uri, mq_api)
         })
         .join()
         .unwrap();
+        let mut args = vec![
+            "--address".to_string(),
+            "0.0.0.0".to_string(),
+            "--port".to_string(),
+            port.to_string(),
+            "--mq-prefix".to_string(),
+            format!("colink-instant-server-{}", port),
+            "--core-uri".to_string(),
+            format!("http://127.0.0.1:{}", port),
+            "--inter-core-reverse-mode".to_string(),
+        ];
+        if let Some(mq_uri) = mq_uri {
+            args.push("--mq-uri".to_string());
+            args.push(mq_uri);
+        }
+        if let Some(mq_api) = mq_api {
+            args.push("--mq-api".to_string());
+            args.push(mq_api);
+        }
         let child = Command::new(program)
-            .args([
-                "--address",
-                "0.0.0.0",
-                "--port",
-                &port.to_string(),
-                "--mq-amqp",
-                &mq_amqp,
-                "--mq-api",
-                &mq_api,
-                "--mq-prefix",
-                &format!("colink-instant-server-{}", port),
-                "--core-uri",
-                &format!("http://127.0.0.1:{}", port),
-                "--inter-core-reverse-mode",
-            ])
+            .args(&args)
             .env("COLINK_HOME", colink_home)
             .current_dir(working_dir.clone())
             .spawn()
