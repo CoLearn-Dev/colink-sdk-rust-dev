@@ -8,13 +8,10 @@ name: check
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
     strategy:
       matrix:
         mq: [standalone, rabbitmq, redis]
+        ci_image: [ubuntu-latest, macos-latest]
         include:
           - mq: rabbitmq
             docker_image: "rabbitmq:3.8-management"
@@ -23,6 +20,10 @@ jobs:
           - mq: redis
             docker_image: "redis"
             mq_uri: "redis://localhost:16379"
+    runs-on: ${{ matrix.ci_image }}
+    defaults:
+      run:
+        shell: bash
     services:
       mq:
         image: ${{ matrix.docker_image }}
