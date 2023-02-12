@@ -45,12 +45,15 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - name: Check
+        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
         run: cargo check --release
       - name: Build
         run: cargo build --all-targets
       - name: Format check
+        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
         run: cargo fmt --all -- --check
       - name: Clippy test
+        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
         run: cargo clippy --profile test -- -D warnings -D clippy::dbg_macro
       - name: Download Server
         run: bash download-server.sh
