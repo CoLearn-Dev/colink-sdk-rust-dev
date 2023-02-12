@@ -30,11 +30,6 @@ jobs:
         run: |
           brew install docker
           colima start
-      - name: Start container (mq)
-        if: ${{ matrix.mq != 'standalone' }}
-        run: docker run -d -p 5672:5672 -p 15672:15672 -p 16379:6379 ${{ matrix.docker_image }}
-      - name: Start container (redis) # for storage macro
-        run: docker run -d -p 6379:6379 redis
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -58,6 +53,11 @@ jobs:
       - name: Download Server
         run: bash download-server.sh
         working-directory: tests
+      - name: Start container (mq)
+        if: ${{ matrix.mq != 'standalone' }}
+        run: docker run -d -p 5672:5672 -p 15672:15672 -p 16379:6379 ${{ matrix.docker_image }}
+      - name: Start container (redis) # for storage macro
+        run: docker run -d -p 6379:6379 redis
       - name: Run tests
         if: ${{ matrix.mq != 'standalone' }}
         env:
