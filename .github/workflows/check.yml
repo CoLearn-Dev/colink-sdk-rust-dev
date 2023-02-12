@@ -59,6 +59,7 @@ jobs:
         run: bash download-server.sh
         working-directory: tests
       - name: debug
+        if: ${{ startsWith(matrix.ci_image, 'macos') }}
         run: |
           lsof -i:16379
           lsof -i:6379
