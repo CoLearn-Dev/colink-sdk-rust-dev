@@ -58,12 +58,6 @@ jobs:
       - name: Download Server
         run: bash download-server.sh
         working-directory: tests
-      - name: debug
-        if: ${{ startsWith(matrix.ci_image, 'macos') }}
-        run: |
-          lsof -i:16379
-          lsof -i:6379
-          lsof -i:15672
       - name: Run tests
         if: ${{ matrix.mq != 'standalone' }}
         env:
