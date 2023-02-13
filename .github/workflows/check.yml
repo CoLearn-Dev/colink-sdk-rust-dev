@@ -15,11 +15,11 @@ jobs:
         include:
           - mq: rabbitmq
             docker_image: "rabbitmq:3.8-management"
-            mq_uri: "amqp://guest:guest@localhost"
-            mq_api: "http://guest:guest@localhost:15672/api"
+            mq_uri: "amqp://guest:guest@127.0.0.1"
+            mq_api: "http://guest:guest@127.0.0.1:15672/api"
           - mq: redis
             docker_image: "redis"
-            mq_uri: "redis://localhost:16379"
+            mq_uri: "redis://127.0.0.1:16379"
     runs-on: ${{ matrix.ci_image }}
     defaults:
       run:
