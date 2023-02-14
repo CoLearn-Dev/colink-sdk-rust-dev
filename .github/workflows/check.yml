@@ -45,7 +45,7 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - name: Check
-        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
+        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}  # skip check in macos because it is slow
         run: cargo check --release
       - name: Build
         run: cargo build --all-targets
