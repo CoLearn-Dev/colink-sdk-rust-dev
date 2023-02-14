@@ -19,7 +19,7 @@ async fn test_storage_macro_redis() -> Result<(), Box<dyn std::error::Error + Se
 {
     let (_ir, _is, cl) = set_up_test_env_single_user().await?;
 
-    cl.create_entry("storage_macro_test_redis:redis_url", b"redis://localhost")
+    cl.create_entry("storage_macro_test_redis:redis_url", b"redis://127.0.0.1")
         .await?;
     let key_name = "storage_macro_test_redis:$redis:redis_key";
     test_crud(&cl, key_name).await?;
@@ -92,7 +92,7 @@ async fn test_storage_macro_redis_append(
 
     cl.create_entry(
         "test_storage_macro_redis_append:redis_url",
-        b"redis://localhost",
+        b"redis://127.0.0.1",
     )
     .await?;
     let key_name = "test_storage_macro_redis_append:$redis:redis_key";
@@ -122,7 +122,7 @@ async fn test_storage_macro_redis_chunk(
 
     cl.create_entry(
         "test_storage_macro_redis_chunk:redis_url",
-        b"redis://localhost",
+        b"redis://127.0.0.1",
     )
     .await?;
     let key_name = "test_storage_macro_redis_chunk:$redis:redis_chunk:$chunk";

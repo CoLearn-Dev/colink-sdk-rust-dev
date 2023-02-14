@@ -48,7 +48,7 @@ impl InstantServer {
                 .arg("bash -c \"$(curl -fsSL https://raw.githubusercontent.com/CoLearn-Dev/colinkctl/main/install_colink.sh)\"")
                 .env("COLINK_INSTALL_SERVER_ONLY", "true")
                 .env("COLINK_INSTALL_SILENT", "true")
-                .env("COLINK_SERVER_VERSION", "v0.3.1")
+                .env("COLINK_SERVER_VERSION", "v0.3.2")
                 .status()
                 .unwrap();
         }
