@@ -21,4 +21,20 @@ impl crate::application::CoLink {
         self.wait_task(&task_id).await?;
         Ok(())
     }
+
+    pub async fn set_forwarding_user_id(&self, forwarding_user_id: &str) -> Result<(), Error> {
+        self.update_entry(
+            "_registry:forwarding_user_id",
+            forwarding_user_id.as_bytes(),
+        )
+        .await?;
+        let _ = async {
+            let registries = self.read_entry("_registry:registries").await?;
+            let registries: Registries = Message::decode(&*registries)?;
+            self.update_registries(&registries).await?;
+            Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
+        }
+        .await;
+        Ok(())
+    }
 }
