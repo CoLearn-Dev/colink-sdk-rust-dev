@@ -40,11 +40,11 @@ impl ProtocolEntry for Receiver {
         for i in 0..8 {
             let key = &format!("output{}", i);
             let key2 = &format!("output_remote_storage{}", i);
-            let msg = cl.receive_variable(key, &participants[0]).await?;
+            let msg = cl.recv_variable(key, &participants[0]).await?;
             cl.create_entry(&format!("tasks:{}:output{}", cl.get_task_id()?, i), &msg)
                 .await?;
             let msg = cl
-                .receive_variable_with_remote_storage(key2, &participants[0])
+                .recv_variable_with_remote_storage(key2, &participants[0])
                 .await?;
             cl.create_entry(
                 &format!("tasks:{}:output_remote_storage{}", cl.get_task_id()?, i),

@@ -47,25 +47,19 @@ impl crate::application::CoLink {
         Ok(())
     }
 
-    #[deprecated(note = "please use `receive_variable` instead")]
+    #[deprecated(note = "please use `recv_variable` instead")]
     pub async fn get_variable(&self, key: &str, sender: &Participant) -> Result<Vec<u8>, Error> {
-        self.receive_variable(key, sender).await
+        self.recv_variable(key, sender).await
     }
 
-    pub async fn receive_variable(
-        &self,
-        key: &str,
-        sender: &Participant,
-    ) -> Result<Vec<u8>, Error> {
+    pub async fn recv_variable(&self, key: &str, sender: &Participant) -> Result<Vec<u8>, Error> {
         if self.task_id.is_empty() {
             Err("task_id not found".to_string())?;
         }
-        if let Ok(res) = self._receive_variable_p2p(key, sender).await {
+        if let Ok(res) = self._recv_variable_p2p(key, sender).await {
             return Ok(res);
         }
-        let res = self
-            .receive_variable_with_remote_storage(key, sender)
-            .await?;
+        let res = self.recv_variable_with_remote_storage(key, sender).await?;
         Ok(res)
     }
 }

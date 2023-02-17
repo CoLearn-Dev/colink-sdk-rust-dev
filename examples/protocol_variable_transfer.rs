@@ -26,7 +26,7 @@ impl ProtocolEntry for Receiver {
         param: Vec<u8>,
         participants: Vec<Participant>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let msg = cl.receive_variable("output", &participants[0]).await?;
+        let msg = cl.recv_variable("output", &participants[0]).await?;
         println!("{}", String::from_utf8_lossy(&msg));
         cl.create_entry(&format!("tasks:{}:output", cl.get_task_id()?), &msg)
             .await?;

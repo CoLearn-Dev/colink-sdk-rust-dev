@@ -60,16 +60,16 @@ impl crate::application::CoLink {
         Ok(())
     }
 
-    #[deprecated(note = "please use `receive_variable_with_remote_storage` instead")]
+    #[deprecated(note = "please use `recv_variable_with_remote_storage` instead")]
     pub async fn get_variable_with_remote_storage(
         &self,
         key: &str,
         sender: &Participant,
     ) -> Result<Vec<u8>, Error> {
-        self.receive_variable_with_remote_storage(key, sender).await
+        self.recv_variable_with_remote_storage(key, sender).await
     }
 
-    pub async fn receive_variable_with_remote_storage(
+    pub async fn recv_variable_with_remote_storage(
         &self,
         key: &str,
         sender: &Participant,

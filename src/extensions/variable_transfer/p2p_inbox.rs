@@ -165,7 +165,7 @@ impl crate::application::CoLink {
             .contains_key(&receiver.user_id)
         {
             let inbox = self
-                .receive_variable_with_remote_storage("inbox", receiver)
+                .recv_variable_with_remote_storage("inbox", receiver)
                 .await?;
             let inbox: VTInbox = serde_json::from_slice(&inbox)?;
             let inbox = if inbox.addr.is_empty() {
@@ -218,7 +218,7 @@ impl crate::application::CoLink {
         Ok(())
     }
 
-    pub(crate) async fn _receive_variable_p2p(
+    pub(crate) async fn _recv_variable_p2p(
         &self,
         key: &str,
         sender: &Participant,
