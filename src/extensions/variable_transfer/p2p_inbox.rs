@@ -165,7 +165,7 @@ impl crate::application::CoLink {
             .contains_key(&receiver.user_id)
         {
             let inbox = self
-                .get_variable_with_remote_storage("inbox", receiver)
+                .receive_variable_with_remote_storage("inbox", receiver)
                 .await?;
             let inbox: VTInbox = serde_json::from_slice(&inbox)?;
             let inbox = if inbox.addr.is_empty() {
@@ -287,7 +287,7 @@ impl crate::application::CoLink {
                         .clone(),
                 }
             };
-            self.set_variable_with_remote_storage(
+            self.send_variable_with_remote_storage(
                 "inbox",
                 &serde_json::to_vec(&vt_inbox)?,
                 &[sender.clone()],

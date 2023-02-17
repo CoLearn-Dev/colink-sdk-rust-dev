@@ -15,10 +15,14 @@ impl ProtocolEntry for Initiator {
         for i in 0..8 {
             let key = &format!("output{}", i);
             let key2 = &format!("output_remote_storage{}", i);
-            cl.set_variable(key, &param, &participants[1..participants.len()])
+            cl.send_variable(key, &param, &participants[1..participants.len()])
                 .await?;
-            cl.set_variable_with_remote_storage(key2, &param, &participants[1..participants.len()])
-                .await?;
+            cl.send_variable_with_remote_storage(
+                key2,
+                &param,
+                &participants[1..participants.len()],
+            )
+            .await?;
         }
         Ok(())
     }
@@ -36,11 +40,11 @@ impl ProtocolEntry for Receiver {
         for i in 0..8 {
             let key = &format!("output{}", i);
             let key2 = &format!("output_remote_storage{}", i);
-            let msg = cl.get_variable(key, &participants[0]).await?;
+            let msg = cl.receive_variable(key, &participants[0]).await?;
             cl.create_entry(&format!("tasks:{}:output{}", cl.get_task_id()?, i), &msg)
                 .await?;
             let msg = cl
-                .get_variable_with_remote_storage(key2, &participants[0])
+                .receive_variable_with_remote_storage(key2, &participants[0])
                 .await?;
             cl.create_entry(
                 &format!("tasks:{}:output_remote_storage{}", cl.get_task_id()?, i),
