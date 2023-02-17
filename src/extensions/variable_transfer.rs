@@ -13,6 +13,15 @@ impl crate::application::CoLink {
         payload: &[u8],
         receivers: &[Participant],
     ) -> Result<(), Error> {
+        self.send_variable(key, payload, receivers).await
+    }
+
+    pub async fn send_variable(
+        &self,
+        key: &str,
+        payload: &[u8],
+        receivers: &[Participant],
+    ) -> Result<(), Error> {
         if self.task_id.is_empty() {
             Err("task_id not found".to_string())?;
         }
@@ -24,7 +33,7 @@ impl crate::application::CoLink {
             let receiver = receiver.clone();
             tokio::spawn(async move {
                 if cl
-                    ._set_variable_p2p(&key, &payload, &receiver)
+                    ._send_variable_p2p(&key, &payload, &receiver)
                     .await
                     .is_err()
                 {
@@ -38,10 +47,18 @@ impl crate::application::CoLink {
     }
 
     pub async fn get_variable(&self, key: &str, sender: &Participant) -> Result<Vec<u8>, Error> {
+        self.receive_variable(key, sender).await
+    }
+
+    pub async fn receive_variable(
+        &self,
+        key: &str,
+        sender: &Participant,
+    ) -> Result<Vec<u8>, Error> {
         if self.task_id.is_empty() {
             Err("task_id not found".to_string())?;
         }
-        if let Ok(res) = self._get_variable_p2p(key, sender).await {
+        if let Ok(res) = self._receive_variable_p2p(key, sender).await {
             return Ok(res);
         }
         let res = self.get_variable_with_remote_storage(key, sender).await?;

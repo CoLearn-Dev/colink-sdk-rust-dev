@@ -14,6 +14,16 @@ impl crate::application::CoLink {
         payload: &[u8],
         receivers: &[Participant],
     ) -> Result<(), Error> {
+        self.send_variable_with_remote_storage(key, payload, receivers)
+            .await
+    }
+
+    pub async fn send_variable_with_remote_storage(
+        &self,
+        key: &str,
+        payload: &[u8],
+        receivers: &[Participant],
+    ) -> Result<(), Error> {
         let mut new_participants = vec![Participant {
             user_id: self.get_user_id()?,
             role: "requester".to_string(),
@@ -50,6 +60,14 @@ impl crate::application::CoLink {
     }
 
     pub async fn get_variable_with_remote_storage(
+        &self,
+        key: &str,
+        sender: &Participant,
+    ) -> Result<Vec<u8>, Error> {
+        self.receive_variable_with_remote_storage(key, sender).await
+    }
+
+    pub async fn receive_variable_with_remote_storage(
         &self,
         key: &str,
         sender: &Participant,

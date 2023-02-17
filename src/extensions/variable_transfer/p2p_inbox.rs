@@ -151,7 +151,7 @@ pub(crate) struct VtP2pCtx {
 }
 
 impl crate::application::CoLink {
-    pub(crate) async fn _set_variable_p2p(
+    pub(crate) async fn _send_variable_p2p(
         &self,
         key: &str,
         payload: &[u8],
@@ -218,7 +218,7 @@ impl crate::application::CoLink {
         Ok(())
     }
 
-    pub(crate) async fn _get_variable_p2p(
+    pub(crate) async fn _receive_variable_p2p(
         &self,
         key: &str,
         sender: &Participant,
