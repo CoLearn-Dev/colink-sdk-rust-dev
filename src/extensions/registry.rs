@@ -37,4 +37,16 @@ impl crate::application::CoLink {
         .await;
         Ok(())
     }
+
+    pub async fn unset_forwarding_user_id(&self) -> Result<(), Error> {
+        self.delete_entry("_registry:forwarding_user_id").await?;
+        let _ = async {
+            let registries = self.read_entry("_registry:registries").await?;
+            let registries: Registries = Message::decode(&*registries)?;
+            self.update_registries(&registries).await?;
+            Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
+        }
+        .await;
+        Ok(())
+    }
 }
