@@ -8,6 +8,7 @@ mod colink_remote_storage {
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
+    #[deprecated(note = "please use `send_variable_with_remote_storage` instead")]
     pub async fn set_variable_with_remote_storage(
         &self,
         key: &str,
@@ -59,6 +60,7 @@ impl crate::application::CoLink {
         Ok(())
     }
 
+    #[deprecated(note = "please use `receive_variable_with_remote_storage` instead")]
     pub async fn get_variable_with_remote_storage(
         &self,
         key: &str,
