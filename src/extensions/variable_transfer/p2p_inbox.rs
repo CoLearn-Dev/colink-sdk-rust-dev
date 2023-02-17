@@ -151,7 +151,7 @@ pub(crate) struct VtP2pCtx {
 }
 
 impl crate::application::CoLink {
-    pub(crate) async fn _set_variable_p2p(
+    pub(crate) async fn _send_variable_p2p(
         &self,
         key: &str,
         payload: &[u8],
@@ -165,7 +165,7 @@ impl crate::application::CoLink {
             .contains_key(&receiver.user_id)
         {
             let inbox = self
-                .get_variable_with_remote_storage("inbox", receiver)
+                .recv_variable_with_remote_storage("inbox", receiver)
                 .await?;
             let inbox: VTInbox = serde_json::from_slice(&inbox)?;
             let inbox = if inbox.addr.is_empty() {
@@ -218,7 +218,7 @@ impl crate::application::CoLink {
         Ok(())
     }
 
-    pub(crate) async fn _get_variable_p2p(
+    pub(crate) async fn _recv_variable_p2p(
         &self,
         key: &str,
         sender: &Participant,
@@ -287,7 +287,7 @@ impl crate::application::CoLink {
                         .clone(),
                 }
             };
-            self.set_variable_with_remote_storage(
+            self.send_variable_with_remote_storage(
                 "inbox",
                 &serde_json::to_vec(&vt_inbox)?,
                 &[sender.clone()],

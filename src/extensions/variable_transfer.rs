@@ -7,7 +7,17 @@ mod tls_utils;
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 impl crate::application::CoLink {
+    #[deprecated(note = "please use `send_variable` instead")]
     pub async fn set_variable(
+        &self,
+        key: &str,
+        payload: &[u8],
+        receivers: &[Participant],
+    ) -> Result<(), Error> {
+        self.send_variable(key, payload, receivers).await
+    }
+
+    pub async fn send_variable(
         &self,
         key: &str,
         payload: &[u8],
@@ -24,11 +34,11 @@ impl crate::application::CoLink {
             let receiver = receiver.clone();
             tokio::spawn(async move {
                 if cl
-                    ._set_variable_p2p(&key, &payload, &receiver)
+                    ._send_variable_p2p(&key, &payload, &receiver)
                     .await
                     .is_err()
                 {
-                    cl.set_variable_with_remote_storage(&key, &payload, &[receiver.clone()])
+                    cl.send_variable_with_remote_storage(&key, &payload, &[receiver.clone()])
                         .await?;
                 }
                 Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
@@ -37,14 +47,19 @@ impl crate::application::CoLink {
         Ok(())
     }
 
+    #[deprecated(note = "please use `recv_variable` instead")]
     pub async fn get_variable(&self, key: &str, sender: &Participant) -> Result<Vec<u8>, Error> {
+        self.recv_variable(key, sender).await
+    }
+
+    pub async fn recv_variable(&self, key: &str, sender: &Participant) -> Result<Vec<u8>, Error> {
         if self.task_id.is_empty() {
             Err("task_id not found".to_string())?;
         }
-        if let Ok(res) = self._get_variable_p2p(key, sender).await {
+        if let Ok(res) = self._recv_variable_p2p(key, sender).await {
             return Ok(res);
         }
-        let res = self.get_variable_with_remote_storage(key, sender).await?;
+        let res = self.recv_variable_with_remote_storage(key, sender).await?;
         Ok(res)
     }
 }
