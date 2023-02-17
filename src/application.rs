@@ -356,6 +356,19 @@ impl CoLink {
         Ok(())
     }
 
+    pub async fn import_forwarding_user_id(
+        &self,
+        user_id: &str,
+        forwarding_user_id: &str,
+    ) -> Result<(), Error> {
+        self.update_entry(
+            &format!("_internal:known_users:{}:forwarding_user_id", user_id),
+            forwarding_user_id.as_bytes(),
+        )
+        .await?;
+        Ok(())
+    }
+
     /// The default expiration time is 1 day later. If you want to specify an expiration time, use run_task_with_expiration_time instead.
     pub async fn run_task(
         &self,
