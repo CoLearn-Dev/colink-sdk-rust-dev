@@ -2,6 +2,7 @@ use crate::{utils::get_colink_home, CoLink};
 use rand::Rng;
 use std::{
     fs::File,
+    io::Write,
     path::Path,
     process::{Child, Command, Stdio},
 };
@@ -40,6 +41,24 @@ impl Default for InstantServer {
 
 impl InstantServer {
     pub fn new() -> Self {
+        InstantServer::config(
+            r#"
+            [policy_module]
+            operator_num = 1
+            [[policy_module.create_entry]]
+            key_name = "_policy_module:init:accept_all_tasks"
+            value = "true"
+            
+            [remote_storage]
+            operator_num = 1
+            
+            [registry]
+            operator_num = 1
+            "#,
+        )
+    }
+
+    pub fn config(user_init_config: &str) -> Self {
         let colink_home = get_colink_home().unwrap();
         let program = Path::new(&colink_home).join("colink-server");
         if std::fs::metadata(program.clone()).is_err() {
@@ -48,7 +67,7 @@ impl InstantServer {
                 .arg("bash -c \"$(curl -fsSL https://raw.githubusercontent.com/CoLearn-Dev/colinkctl/main/install_colink.sh)\"")
                 .env("COLINK_INSTALL_SERVER_ONLY", "true")
                 .env("COLINK_INSTALL_SILENT", "true")
-                .env("COLINK_SERVER_VERSION", "v0.3.3")
+                .env("COLINK_SERVER_VERSION", "v0.3.4")
                 .status()
                 .unwrap();
         }
@@ -61,6 +80,11 @@ impl InstantServer {
             .join("instant_servers")
             .join(instant_server_id.clone());
         std::fs::create_dir_all(&working_dir).unwrap();
+        let mut user_init_config_file =
+            std::fs::File::create(&Path::new(&working_dir).join("user_init_config.toml")).unwrap();
+        user_init_config_file
+            .write_all(user_init_config.as_bytes())
+            .unwrap();
         let mq_uri = if std::env::var("COLINK_SERVER_MQ_URI").is_ok() {
             Some(std::env::var("COLINK_SERVER_MQ_URI").unwrap())
         } else {
