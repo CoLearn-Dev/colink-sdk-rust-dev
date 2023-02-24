@@ -125,7 +125,7 @@ async fn test_storage_macro_chunk_append(
 }
 
 #[tokio::test]
-async fn test_storage_macro_chunk_fs(
+async fn test_storage_macro_fs_append(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (_ir, _is, cl) = set_up_test_env_single_user().await?;
 

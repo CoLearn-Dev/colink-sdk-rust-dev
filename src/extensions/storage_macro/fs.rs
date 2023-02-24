@@ -43,6 +43,28 @@ impl crate::application::CoLink {
     }
 
     #[async_recursion]
+    pub(crate) async fn _append_entry_fs(
+        &self,
+        _string_before: &str,
+        path: &str,
+        payload: &[u8],
+    ) -> Result<String, Error> {
+        let lock_token = self.lock(path).await?;
+        // use a closure to prevent locking forever caused by errors
+        let res = async {
+            let mut file = tokio::fs::OpenOptions::new()
+                .append(true)
+                .open(path)
+                .await?;
+            file.write_all(payload).await?;
+            Ok::<String, Error>("ok".to_string())
+        }
+        .await;
+        self.unlock(lock_token).await?;
+        res
+    }
+
+    #[async_recursion]
     pub(crate) async fn _delete_entry_fs(
         &self,
         _string_before: &str,
