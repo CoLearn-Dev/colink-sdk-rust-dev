@@ -37,11 +37,7 @@ impl crate::application::CoLink {
         path: &str,
         payload: &[u8],
     ) -> Result<String, Error> {
-        let mut file = tokio::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(path)
-            .await?;
+        let mut file = tokio::fs::File::create(path).await?;
         file.write_all(payload).await?;
         Ok("ok".to_string())
     }
