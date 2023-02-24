@@ -41,7 +41,7 @@ impl Default for InstantServer {
 
 impl InstantServer {
     pub fn new() -> Self {
-        InstantServer::config(
+        InstantServer::new_with_config(
             r#"
             [policy_module]
             operator_num = 1
@@ -58,7 +58,7 @@ impl InstantServer {
         )
     }
 
-    pub fn config(user_init_config: &str) -> Self {
+    pub fn new_with_config(user_init_config: &str) -> Self {
         let colink_home = get_colink_home().unwrap();
         let program = Path::new(&colink_home).join("colink-server");
         if std::fs::metadata(program.clone()).is_err() {
