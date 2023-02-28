@@ -31,7 +31,19 @@ async fn test_storage_macro_redis() -> Result<(), Box<dyn std::error::Error + Se
 async fn test_storage_macro_fs() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (_ir, _is, cl) = set_up_test_env_single_user().await?;
 
-    let key_name = "storage_macro_test_fs:$fs:/tmp/colink-sm-fs-test";
+    cl.create_entry("test_storage_macro_fs:path", b"/tmp/colink-sm-fs-test/test")
+        .await?;
+    let key_name = "test_storage_macro_fs:$fs";
+    test_crud(&cl, key_name).await?;
+
+    cl.create_entry(
+        "test_storage_macro_fs_dir:path",
+        b"/tmp/colink-sm-fs-test/test-dir",
+    )
+    .await?;
+    let key_name = "test_storage_macro_fs_dir:$fs:test-file";
+    test_crud(&cl, key_name).await?;
+    let key_name = "test_storage_macro_fs_dir:$fs:test-dir:test-file";
     test_crud(&cl, key_name).await?;
 
     Ok(())
@@ -129,7 +141,12 @@ async fn test_storage_macro_fs_append(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (_ir, _is, cl) = set_up_test_env_single_user().await?;
 
-    let key_name = "test_storage_macro_fs_append:$fs:/tmp/colink-sm-fs-append-test";
+    cl.create_entry(
+        "test_storage_macro_fs_append:path",
+        b"/tmp/colink-sm-fs-test/append-test",
+    )
+    .await?;
+    let key_name = "test_storage_macro_fs_append:$fs";
     test_append(&cl, key_name, 5e6 as usize).await?;
 
     Ok(())
