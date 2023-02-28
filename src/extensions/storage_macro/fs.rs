@@ -13,7 +13,7 @@ impl crate::application::CoLink {
         let path_key = format!("{}:path", path_key_name);
         let mut path = String::from_utf8(self.read_entry(&path_key).await?)?;
         if !path_suffix.is_empty() {
-            let path_suffix = path_suffix.replace(":", "/");
+            let path_suffix = path_suffix.replace(':', "/");
             path += "/";
             path += &path_suffix;
         }
