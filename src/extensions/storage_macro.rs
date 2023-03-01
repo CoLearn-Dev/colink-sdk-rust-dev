@@ -1,5 +1,6 @@
 mod append;
 mod chunk;
+mod fs;
 mod redis;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -39,6 +40,10 @@ impl crate::application::CoLink {
                 self._create_entry_redis(&string_before, &string_after, payload)
                     .await
             }
+            "fs" => {
+                self._create_entry_fs(&string_before, &string_after, payload)
+                    .await
+            }
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -52,6 +57,7 @@ impl crate::application::CoLink {
         match macro_type.as_str() {
             "chunk" => self._read_entry_chunk(&string_before).await,
             "redis" => self._read_entry_redis(&string_before, &string_after).await,
+            "fs" => self._read_entry_fs(&string_before, &string_after).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
@@ -72,6 +78,10 @@ impl crate::application::CoLink {
                 self._update_entry_redis(&string_before, &string_after, payload)
                     .await
             }
+            "fs" => {
+                self._update_entry_fs(&string_before, &string_after, payload)
+                    .await
+            }
             "append" => self._update_entry_append(&string_before, payload).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
@@ -89,6 +99,7 @@ impl crate::application::CoLink {
                 self._delete_entry_redis(&string_before, &string_after)
                     .await
             }
+            "fs" => self._delete_entry_fs(&string_before, &string_after).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
