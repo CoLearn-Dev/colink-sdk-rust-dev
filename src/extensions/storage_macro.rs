@@ -1,7 +1,7 @@
 mod append;
 mod chunk;
 mod redis;
-mod sql;
+mod dbc;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
