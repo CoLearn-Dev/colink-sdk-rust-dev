@@ -24,6 +24,7 @@ prost = "0.10"
 rand = { version = "0.8", features = ["std_rng"] }
 rcgen = { version = "0.10", optional = true }
 rdbc = { version = "0.1.6", optional = true }
+rdbc-sqlite = "0.1.6"
 redis = { version = "0.22", features = ["tokio-comp"] }
 reqwest = { version = "0.11", default-features = false, features = ["rustls-tls-native-roots"], optional = true }
 secp256k1 = { version = "0.25", features = ["rand-std"] }

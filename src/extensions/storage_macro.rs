@@ -53,7 +53,7 @@ impl crate::application::CoLink {
         match macro_type.as_str() {
             "chunk" => self._read_entry_chunk(&string_before).await,
             "redis" => self._read_entry_redis(&string_before, &string_after).await,
-            "rdbc" => self._read_entry_rdbc(&string_before).await,
+            "rdbc" => self._read_entry_rdbc(&string_before, &string_after).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
                 macro_type, key_name
