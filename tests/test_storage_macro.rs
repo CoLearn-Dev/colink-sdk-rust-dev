@@ -130,11 +130,11 @@ async fn test_storage_macro_fs_keys(
     let (_ir, _is, cl) = set_up_test_env_single_user().await?;
 
     cl.create_entry(
-        "test_storage_macro_fs_dir:path",
-        b"/tmp/colink-sm-fs-test/test-dir",
+        "test_storage_macro_fs_keys:path",
+        b"/tmp/colink-sm-fs-test/test-keys",
     )
     .await?;
-    let key_name = "test_storage_macro_fs_dir:$fs";
+    let key_name = "test_storage_macro_fs_keys:$fs";
     test_read_keys(&cl, key_name).await?;
 
     Ok(())
