@@ -112,6 +112,72 @@ async fn test_append(
 }
 
 #[tokio::test]
+async fn test_storage_macro_redis_keys(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
+
+    cl.create_entry("storage_macro_test_redis:redis_url", b"redis://127.0.0.1")
+        .await?;
+    let key_name = "storage_macro_test_redis:$redis:redis_key";
+    test_read_keys(&cl, key_name).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_storage_macro_fs_keys(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
+
+    cl.create_entry(
+        "test_storage_macro_fs_dir:path",
+        b"/tmp/colink-sm-fs-test/test-dir",
+    )
+    .await?;
+    let key_name = "test_storage_macro_fs_dir:$fs";
+    test_read_keys(&cl, key_name).await?;
+
+    Ok(())
+}
+
+async fn test_read_keys(
+    cl: &CoLink,
+    key_name: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let payload0 = rand::thread_rng()
+        .sample_iter(&rand::distributions::Standard)
+        .take(10 as usize)
+        .collect::<Vec<u8>>();
+    let payload1 = rand::thread_rng()
+        .sample_iter(&rand::distributions::Standard)
+        .take(5 as usize)
+        .collect::<Vec<u8>>();
+    cl.create_entry(&format!("{}:0", key_name), &payload0)
+        .await?;
+    cl.create_entry(&format!("{}:1", key_name), &payload1)
+        .await?;
+    let keys = cl
+        .read_keys(&format!("{}::{}", cl.get_user_id()?, key_name), false)
+        .await?;
+    assert_eq!(keys.len(), 2);
+    let data = cl.read_entry(&keys[0].key_path).await?;
+    match data.len() {
+        10 => assert_eq!(data, payload0),
+        5 => assert_eq!(data, payload1),
+        _ => assert!(false),
+    }
+    let data = cl.read_entry(&keys[1].key_path).await?;
+    match data.len() {
+        10 => assert_eq!(data, payload0),
+        5 => assert_eq!(data, payload1),
+        _ => assert!(false),
+    }
+    cl.delete_entry(&format!("{}:0", key_name)).await?;
+    cl.delete_entry(&format!("{}:1", key_name)).await?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_storage_macro_redis_append(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let (_ir, _is, cl) = set_up_test_env_single_user().await?;
