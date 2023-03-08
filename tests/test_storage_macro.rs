@@ -171,3 +171,55 @@ async fn test_storage_macro_redis_chunk(
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_storage_macro_redis_chunk_append(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
+
+    cl.create_entry(
+        "test_storage_macro_redis_chunk_append:redis_url",
+        b"redis://127.0.0.1",
+    )
+    .await?;
+    let key_name = "test_storage_macro_redis_chunk_append:$redis:redis_chunk:$chunk";
+    test_append(&cl, key_name, 5e6 as usize).await?;
+    test_append(&cl, key_name, 10 as usize).await?;
+    test_append(&cl, key_name, 1024 * 1024 as usize).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_storage_macro_fs_chunk(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
+
+    cl.create_entry(
+        "test_storage_macro_fs_chunk:path",
+        b"/tmp/colink-sm-fs-test/chunk-test",
+    )
+    .await?;
+    let key_name = "test_storage_macro_fs_chunk:$fs:$chunk";
+    test_crud(&cl, key_name).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_storage_macro_fs_chunk_append(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    let (_ir, _is, cl) = set_up_test_env_single_user().await?;
+
+    cl.create_entry(
+        "test_storage_macro_fs_chunk_append:path",
+        b"/tmp/colink-sm-fs-test/chunk-append-test",
+    )
+    .await?;
+    let key_name = "test_storage_macro_fs_chunk_append:$fs:$chunk";
+    test_append(&cl, key_name, 5e6 as usize).await?;
+    test_append(&cl, key_name, 10 as usize).await?;
+    test_append(&cl, key_name, 1024 * 1024 as usize).await?;
+
+    Ok(())
+}

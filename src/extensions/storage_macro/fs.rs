@@ -17,7 +17,6 @@ impl crate::application::CoLink {
             path += "/";
             path += &path_suffix;
         }
-        println!("path: {}", path);
         let path = PathBuf::from(path);
         tokio::fs::create_dir_all(path.parent().unwrap()).await?;
         Ok(path)
