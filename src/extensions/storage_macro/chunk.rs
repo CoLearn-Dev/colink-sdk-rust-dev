@@ -121,6 +121,17 @@ impl crate::application::CoLink {
         Ok(chunk_id)
     }
 
+    async fn _delete_chunks_compatibility_mode(&self, key_name: &str) -> Result<String, Error> {
+        let metadata_key = format!("{}:chunk_metadata", key_name);
+        let chunk_len = self.read_entry(&metadata_key).await?;
+        let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
+        let res = self.delete_entry(&metadata_key).await?;
+        for i in 0..chunk_len {
+            self.delete_entry(&format!("{}:{}", key_name, i)).await?;
+        }
+        Ok(res)
+    }
+
     async fn _chunk_lock_compatibility_mode(&self, key_name: &str) -> Result<(), Error> {
         loop {
             if self
@@ -149,11 +160,15 @@ impl crate::application::CoLink {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         if key_name.contains('$') {
             self._chunk_lock_compatibility_mode(key_name).await?;
+            if let Err(e) = self.create_entry(&metadata_key, b"0").await {
+                self._chunk_unlock_compatibility_mode(key_name).await?;
+                return Err(e);
+            }
             let chunk_len = self
                 ._store_chunks_compatibility_mode(payload, key_name)
                 .await?;
             let res = self
-                .create_entry(&metadata_key, chunk_len.to_string().as_bytes())
+                .update_entry(&metadata_key, chunk_len.to_string().as_bytes())
                 .await?;
             self._chunk_unlock_compatibility_mode(key_name).await?;
             return Ok(res);
@@ -182,15 +197,19 @@ impl crate::application::CoLink {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         if key_name.contains('$') {
             self._chunk_lock_compatibility_mode(key_name).await?;
-            let chunk_len = self.read_entry(&metadata_key).await?;
-            let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
-            let mut payload = Vec::new();
-            for i in 0..chunk_len {
-                let mut res = self.read_entry(&format!("{}:{}", key_name, i)).await?;
-                payload.append(&mut res);
+            let res = async {
+                let chunk_len = self.read_entry(&metadata_key).await?;
+                let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
+                let mut payload = Vec::new();
+                for i in 0..chunk_len {
+                    let mut res = self.read_entry(&format!("{}:{}", key_name, i)).await?;
+                    payload.append(&mut res);
+                }
+                Ok::<Vec<u8>, Error>(payload)
             }
+            .await;
             self._chunk_unlock_compatibility_mode(key_name).await?;
-            return Ok(payload);
+            return res;
         }
         let metadata_response = self.read_entry(&metadata_key).await?;
         let payload_string = String::from_utf8(metadata_response)?;
@@ -217,7 +236,7 @@ impl crate::application::CoLink {
         let metadata_key = format!("{}:chunk_metadata", key_name);
         if key_name.contains('$') {
             self._chunk_lock_compatibility_mode(key_name).await?;
-            let _ = self._delete_entry_chunk(key_name).await;
+            let _ = self._delete_chunks_compatibility_mode(key_name).await;
             let chunk_len = self
                 ._store_chunks_compatibility_mode(payload, key_name)
                 .await?;
@@ -278,18 +297,13 @@ impl crate::application::CoLink {
 
     #[async_recursion]
     pub(crate) async fn _delete_entry_chunk(&self, key_name: &str) -> Result<String, Error> {
-        let metadata_key = format!("{}:chunk_metadata", key_name);
         if key_name.contains('$') {
             self._chunk_lock_compatibility_mode(key_name).await?;
-            let chunk_len = self.read_entry(&metadata_key).await?;
-            let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
-            let res = self.delete_entry(&metadata_key).await?;
-            for i in 0..chunk_len {
-                self.delete_entry(&format!("{}:{}", key_name, i)).await?;
-            }
+            let res = self._delete_chunks_compatibility_mode(key_name).await;
             self._chunk_unlock_compatibility_mode(key_name).await?;
-            return Ok(res);
+            return res;
         }
+        let metadata_key = format!("{}:chunk_metadata", key_name);
         let lock_token = self.lock(&metadata_key).await?;
         let res = self.delete_entry(&metadata_key).await;
         self.unlock(lock_token).await?;

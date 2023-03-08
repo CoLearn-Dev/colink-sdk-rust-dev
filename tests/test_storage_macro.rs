@@ -58,17 +58,21 @@ async fn test_crud(
         .take(5e6 as usize)
         .collect::<Vec<u8>>();
     cl.create_entry(key_name, &payload).await?;
+    println!("Create");
     assert!(cl.create_entry(key_name, b"").await.is_err());
     let data = cl.read_entry(key_name).await?;
+    println!("Read");
     assert_eq!(data, payload);
     let new_payload = rand::thread_rng()
         .sample_iter(&rand::distributions::Standard)
         .take(3e6 as usize)
         .collect::<Vec<u8>>();
     cl.update_entry(key_name, &new_payload).await?;
+    println!("Update");
     let data = cl.read_entry(key_name).await?;
     assert_eq!(data, new_payload);
     cl.delete_entry(key_name).await?;
+    println!("Delete");
     assert!(cl.read_entry(key_name).await.is_err());
     assert!(cl.delete_entry(key_name).await.is_err());
     Ok(())
@@ -152,7 +156,6 @@ async fn test_storage_macro_fs_append(
     Ok(())
 }
 
-#[ignore]
 #[tokio::test]
 async fn test_storage_macro_redis_chunk(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
