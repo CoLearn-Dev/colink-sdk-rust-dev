@@ -268,6 +268,8 @@ async fn test_storage_macro_fs_chunk(
     .await?;
     let key_name = "test_storage_macro_fs_chunk:$fs:$chunk";
     test_crud(&cl, key_name).await?;
+    let key_name = "test_storage_macro_fs_chunk:$fs:test-dir:$chunk";
+    test_crud(&cl, key_name).await?;
 
     Ok(())
 }
