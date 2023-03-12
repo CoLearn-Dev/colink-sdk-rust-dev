@@ -82,4 +82,19 @@ impl crate::application::CoLink {
         }
         Ok(response.to_string())
     }
+
+    #[async_recursion]
+    pub(crate) async fn _read_keys_redis(
+        &self,
+        address: &str,
+        prefix: &str,
+    ) -> Result<Vec<String>, Error> {
+        let mut con = self._get_con_from_stored_credentials(address).await?;
+        let res: Vec<String> = con.keys(format!("{}:*", prefix)).await?;
+        let mut key_list: Vec<String> = Vec::new();
+        for key in res {
+            key_list.push(key[prefix.len() + 1..].to_string());
+        }
+        Ok(key_list)
+    }
 }

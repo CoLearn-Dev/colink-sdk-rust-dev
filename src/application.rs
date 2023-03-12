@@ -203,7 +203,6 @@ impl CoLink {
     }
 
     pub async fn create_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
         if key_name.contains('$') {
             #[cfg(feature = "storage_macro")]
             return self._sm_create_entry(key_name, payload).await;
@@ -215,6 +214,7 @@ impl CoLink {
             .into());
         }
 
+        let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,
             StorageEntry {
@@ -269,7 +269,6 @@ impl CoLink {
     }
 
     pub async fn update_entry(&self, key_name: &str, payload: &[u8]) -> Result<String, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
         if key_name.contains('$') {
             #[cfg(feature = "storage_macro")]
             return self._sm_update_entry(key_name, payload).await;
@@ -281,6 +280,7 @@ impl CoLink {
             .into());
         }
 
+        let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,
             StorageEntry {
@@ -295,7 +295,6 @@ impl CoLink {
     }
 
     pub async fn delete_entry(&self, key_name: &str) -> Result<String, Error> {
-        let mut client = self._grpc_connect(&self.core_addr).await?;
         if key_name.contains('$') {
             #[cfg(feature = "storage_macro")]
             return self._sm_delete_entry(key_name).await;
@@ -307,6 +306,7 @@ impl CoLink {
             .into());
         }
 
+        let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,
             StorageEntry {
@@ -324,6 +324,17 @@ impl CoLink {
         prefix: &str,
         include_history: bool,
     ) -> Result<Vec<StorageEntry>, Error> {
+        if prefix.contains('$') {
+            #[cfg(feature = "storage_macro")]
+            return self._sm_read_keys(prefix, include_history).await;
+            #[cfg(not(feature = "storage_macro"))]
+            return Err(format!(
+                "Storage Macro feature not enabled, but found $ symbol in key name: {}",
+                key_name
+            )
+            .into());
+        }
+
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,

@@ -232,13 +232,13 @@ impl crate::application::CoLink {
             .contains(&sender.user_id)
         {
             // create inbox if it does not exist
-            if self.vt_p2p_ctx.public_addr.is_some()
-                && !(*self.vt_p2p_ctx.has_created_inbox.lock().await)
-            {
+            if self.vt_p2p_ctx.public_addr.is_some() {
                 let mut has_created_inbox = self.vt_p2p_ctx.has_created_inbox.lock().await;
-                let inbox_server = VTInboxServer::new();
-                *self.vt_p2p_ctx.inbox_server.write().await = Some(inbox_server);
-                *has_created_inbox = true;
+                if !(*has_created_inbox) {
+                    let inbox_server = VTInboxServer::new();
+                    *self.vt_p2p_ctx.inbox_server.write().await = Some(inbox_server);
+                    *has_created_inbox = true;
+                }
             }
             // generate vt_inbox information for the sender
             let vt_inbox = if self.vt_p2p_ctx.public_addr.is_none() {

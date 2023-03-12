@@ -17,7 +17,6 @@ impl crate::application::CoLink {
             path += "/";
             path += &path_suffix;
         }
-        println!("path: {}", path);
         let path = PathBuf::from(path);
         tokio::fs::create_dir_all(path.parent().unwrap()).await?;
         Ok(path)
@@ -96,5 +95,20 @@ impl crate::application::CoLink {
         let path = self._sm_fs_get_path(path_key_name, path_suffix).await?;
         tokio::fs::remove_file(path).await?;
         Ok("ok".to_string())
+    }
+
+    #[async_recursion]
+    pub(crate) async fn _read_keys_fs(
+        &self,
+        path_key_name: &str,
+        prefix: &str,
+    ) -> Result<Vec<String>, Error> {
+        let path = self._sm_fs_get_path(path_key_name, prefix).await?;
+        let mut key_list: Vec<String> = Vec::new();
+        let mut dir = tokio::fs::read_dir(path).await?;
+        while let Some(entry) = dir.next_entry().await? {
+            key_list.push(entry.file_name().to_string_lossy().to_string());
+        }
+        Ok(key_list)
     }
 }
