@@ -544,10 +544,12 @@ impl CoLink {
             Default::default(),
             Default::default(),
             Default::default(),
+            Default::default(),
         )
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn start_protocol_operator_full_config(
         &self,
         protocol_name: &str,
@@ -556,6 +558,7 @@ impl CoLink {
         source_type: &str,
         deploy_mode: &str,
         source: &str,
+        vt_public_addr: &str,
     ) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
@@ -567,6 +570,7 @@ impl CoLink {
                 source_type: source_type.to_string(),
                 deploy_mode: deploy_mode.to_string(),
                 source: source.to_string(),
+                vt_public_addr: vt_public_addr.to_string(),
             },
         );
         let response = client.start_protocol_operator(request).await?;
