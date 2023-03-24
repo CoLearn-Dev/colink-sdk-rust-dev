@@ -1,7 +1,6 @@
-use std::sync::Arc;
-use rdbc;
-use rdbc_sqlite::SqliteDriver;
 use async_recursion::async_recursion;
+
+use rdbc2;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -16,13 +15,13 @@ impl crate::application::CoLink {
                 let query_string_raw = String::from_utf8(payload.unwrap())?;
                 let count = query_string_raw.matches("?").count();
                 if count != split_key_path.len() - i {
-                    return Err("Number of parameters does not match specified query string")?
+                    return Err("Number of parameters does not match specified query string")?;
                 }
                 let mut query_string = query_string_raw;
                 for j in 0..count {
                     query_string = query_string.replacen("?", split_key_path[i + j], 1);
                 }
-                return Ok(query_string)
+                return Ok(query_string);
             }
         }
         Err("no query string found.")?
@@ -38,21 +37,11 @@ impl crate::application::CoLink {
         let url = self.read_entry(url_key.as_str()).await?;
         let url_string = String::from_utf8(url)?;
         let query_string = self._search_and_generate_query_string(address, key_name).await?;
-        let driver: Arc<dyn rdbc::Driver> = Arc::new( SqliteDriver::new());
 
-        let conn = driver.connect(url_string.as_str()).unwrap();
-        let mut conn = (*conn).borrow_mut();
-        let stmt = conn.prepare(query_string.as_str()).unwrap();
-        let mut stmt = (*stmt).borrow_mut();
-        let mut rs = stmt.execute_query(&vec![]).unwrap();
-        let mut result: Vec<u8> = Vec::new();
-        //let meta = rs.borrow_mut().meta_data().unwrap();
-        while {
-            let mut rs = (*rs).borrow_mut();
-            let value = rs.get_string(1).unwrap().ok_or("Failed to parse query results")?;
-            result.extend(value.into_bytes());
-            rs.next()
-        } {}
+        let mut database = rdbc2::dbc::Database::new(url_string.as_str())?;
+
+        let result = database.execute_query_and_serialize_raw(query_string.as_str())?;
+
         Ok(result)
     }
 }
