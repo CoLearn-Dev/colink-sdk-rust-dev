@@ -1,7 +1,7 @@
 mod common;
-use colink::CoLink;
+
 use common::*;
-use rand::Rng;
+
 
 #[tokio::test]
 async fn test_storage_macro_rdbc_mysql() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>
