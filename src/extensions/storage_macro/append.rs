@@ -20,6 +20,11 @@ impl crate::application::CoLink {
                 "chunk" => {
                     return self._append_entry_chunk(&string_before, payload).await;
                 }
+                "fs" => {
+                    return self
+                        ._append_entry_fs(&string_before, &string_after, payload)
+                        .await;
+                }
                 _ => {}
             }
         }

@@ -97,6 +97,100 @@ impl crate::application::CoLink {
         Ok(chunk_paths_string)
     }
 
+    async fn _store_chunks_compatibility_mode(
+        &self,
+        payload: &[u8],
+        key_name: &str,
+    ) -> Result<i32, Error> {
+        let mut offset = 0;
+        let mut chunk_id = 0;
+        while offset < payload.len() {
+            let chunk_size = if offset + CHUNK_SIZE > payload.len() {
+                payload.len() - offset
+            } else {
+                CHUNK_SIZE
+            };
+            self.update_entry(
+                &format!("{}:{}", key_name, chunk_id),
+                &payload[offset..offset + chunk_size],
+            )
+            .await?;
+            offset += chunk_size;
+            chunk_id += 1;
+        }
+        Ok(chunk_id)
+    }
+
+    async fn _append_chunks_compatibility_mode(
+        &self,
+        chunk_len: i32,
+        payload: &[u8],
+        key_name: &str,
+    ) -> Result<i32, Error> {
+        let last_chunk_id = chunk_len - 1;
+        let mut last_chunk = self
+            .read_entry(&format!("{}:{}", key_name, last_chunk_id,))
+            .await?;
+        let mut offset = 0;
+        let mut chunk_id = chunk_len;
+        if last_chunk.len() < CHUNK_SIZE {
+            let chunk_size = if payload.len() < CHUNK_SIZE - last_chunk.len() {
+                payload.len()
+            } else {
+                CHUNK_SIZE - last_chunk.len()
+            };
+            last_chunk.append(&mut payload[..chunk_size].to_vec());
+            self.update_entry(&format!("{}:{}", key_name, last_chunk_id), &last_chunk)
+                .await?;
+            offset = chunk_size;
+        }
+        while offset < payload.len() {
+            let chunk_size = if offset + CHUNK_SIZE > payload.len() {
+                payload.len() - offset
+            } else {
+                CHUNK_SIZE
+            };
+            self.update_entry(
+                &format!("{}:{}", key_name, chunk_id),
+                &payload[offset..offset + chunk_size],
+            )
+            .await?;
+            offset += chunk_size;
+            chunk_id += 1;
+        }
+        Ok(chunk_id)
+    }
+
+    async fn _delete_chunks_compatibility_mode(&self, key_name: &str) -> Result<String, Error> {
+        let metadata_key = format!("{}:chunk_metadata", key_name);
+        let chunk_len = self.read_entry(&metadata_key).await?;
+        let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
+        let res = self.delete_entry(&metadata_key).await?;
+        for i in 0..chunk_len {
+            self.delete_entry(&format!("{}:{}", key_name, i)).await?;
+        }
+        Ok(res)
+    }
+
+    async fn _chunk_lock_compatibility_mode(&self, key_name: &str) -> Result<(), Error> {
+        loop {
+            if self
+                .create_entry(&format!("{}:chunk_lock", key_name), b"")
+                .await
+                .is_ok()
+            {
+                return Ok(());
+            }
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+    }
+
+    async fn _chunk_unlock_compatibility_mode(&self, key_name: &str) -> Result<(), Error> {
+        self.delete_entry(&format!("{}:chunk_lock", key_name))
+            .await?;
+        Ok(())
+    }
+
     #[async_recursion]
     pub(crate) async fn _create_entry_chunk(
         &self,
@@ -104,6 +198,21 @@ impl crate::application::CoLink {
         payload: &[u8],
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
+        if key_name.contains('$') {
+            self._chunk_lock_compatibility_mode(key_name).await?;
+            if let Err(e) = self.create_entry(&metadata_key, b"0").await {
+                self._chunk_unlock_compatibility_mode(key_name).await?;
+                return Err(e);
+            }
+            let chunk_len = self
+                ._store_chunks_compatibility_mode(payload, key_name)
+                .await?;
+            let res = self
+                .update_entry(&metadata_key, chunk_len.to_string().as_bytes())
+                .await?;
+            self._chunk_unlock_compatibility_mode(key_name).await?;
+            return Ok(res);
+        }
         // lock the metadata entry to prevent simultaneous writes
         let lock_token = self.lock(&metadata_key).await?;
         // use a closure to prevent locking forever caused by errors
@@ -114,7 +223,7 @@ impl crate::application::CoLink {
             let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
             // store the chunk paths in the metadata entry and update metadata
             let response = self
-                .create_entry(&metadata_key, &chunk_paths_string.into_bytes())
+                .create_entry(&metadata_key, chunk_paths_string.as_bytes())
                 .await?;
             Ok::<String, Error>(response)
         }
@@ -126,6 +235,22 @@ impl crate::application::CoLink {
     #[async_recursion]
     pub(crate) async fn _read_entry_chunk(&self, key_name: &str) -> Result<Vec<u8>, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
+        if key_name.contains('$') {
+            self._chunk_lock_compatibility_mode(key_name).await?;
+            let res = async {
+                let chunk_len = self.read_entry(&metadata_key).await?;
+                let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
+                let mut payload = Vec::new();
+                for i in 0..chunk_len {
+                    let mut res = self.read_entry(&format!("{}:{}", key_name, i)).await?;
+                    payload.append(&mut res);
+                }
+                Ok::<Vec<u8>, Error>(payload)
+            }
+            .await;
+            self._chunk_unlock_compatibility_mode(key_name).await?;
+            return res;
+        }
         let metadata_response = self.read_entry(&metadata_key).await?;
         let payload_string = String::from_utf8(metadata_response)?;
         let user_id = self.get_user_id()?;
@@ -149,6 +274,18 @@ impl crate::application::CoLink {
         payload: &[u8],
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
+        if key_name.contains('$') {
+            self._chunk_lock_compatibility_mode(key_name).await?;
+            let _ = self._delete_chunks_compatibility_mode(key_name).await;
+            let chunk_len = self
+                ._store_chunks_compatibility_mode(payload, key_name)
+                .await?;
+            let res = self
+                .update_entry(&metadata_key, chunk_len.to_string().as_bytes())
+                .await?;
+            self._chunk_unlock_compatibility_mode(key_name).await?;
+            return Ok(res);
+        }
         // lock the metadata entry to prevent simultaneous writes
         let lock_token = self.lock(&metadata_key).await?;
         // use a closure to prevent locking forever caused by errors
@@ -159,7 +296,7 @@ impl crate::application::CoLink {
             let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
             // update the metadata entry
             let response = self
-                .update_entry(&metadata_key, &chunk_paths_string.into_bytes())
+                .update_entry(&metadata_key, chunk_paths_string.as_bytes())
                 .await?;
             Ok::<String, Error>(response)
         }
@@ -175,6 +312,19 @@ impl crate::application::CoLink {
         payload: &[u8],
     ) -> Result<String, Error> {
         let metadata_key = format!("{}:chunk_metadata", key_name);
+        if key_name.contains('$') {
+            self._chunk_lock_compatibility_mode(key_name).await?;
+            let chunk_len = self.read_entry(&metadata_key).await?;
+            let chunk_len = String::from_utf8_lossy(&chunk_len).parse::<i32>()?;
+            let new_chunk_len = self
+                ._append_chunks_compatibility_mode(chunk_len, payload, key_name)
+                .await?;
+            let res = self
+                .update_entry(&metadata_key, new_chunk_len.to_string().as_bytes())
+                .await?;
+            self._chunk_unlock_compatibility_mode(key_name).await?;
+            return Ok(res);
+        }
         // lock the metadata entry to prevent simultaneous writes
         let lock_token = self.lock(&metadata_key).await?;
         // use a closure to prevent locking forever caused by errors
@@ -189,7 +339,7 @@ impl crate::application::CoLink {
             let chunk_paths_string = self._check_chunk_paths_size(chunk_paths)?;
             // update the metadata entry
             let response = self
-                .update_entry(&metadata_key, &chunk_paths_string.into_bytes())
+                .update_entry(&metadata_key, chunk_paths_string.as_bytes())
                 .await?;
             Ok::<String, Error>(response)
         }
@@ -200,6 +350,12 @@ impl crate::application::CoLink {
 
     #[async_recursion]
     pub(crate) async fn _delete_entry_chunk(&self, key_name: &str) -> Result<String, Error> {
+        if key_name.contains('$') {
+            self._chunk_lock_compatibility_mode(key_name).await?;
+            let res = self._delete_chunks_compatibility_mode(key_name).await;
+            self._chunk_unlock_compatibility_mode(key_name).await?;
+            return res;
+        }
         let metadata_key = format!("{}:chunk_metadata", key_name);
         let lock_token = self.lock(&metadata_key).await?;
         let res = self.delete_entry(&metadata_key).await;
