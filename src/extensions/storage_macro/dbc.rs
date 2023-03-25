@@ -37,11 +37,8 @@ impl crate::application::CoLink {
         let url = self.read_entry(url_key.as_str()).await?;
         let url_string = String::from_utf8(url)?;
         let query_string = self._search_and_generate_query_string(address, key_name).await?;
-
         let mut database = rdbc2::dbc::Database::new(url_string.as_str())?;
-
         let result = database.execute_query_and_serialize_raw(query_string.as_str())?;
-
         Ok(result)
     }
 }
