@@ -11,7 +11,7 @@ impl crate::application::CoLink {
         string_after_dbc: &str,
     ) -> Result<String, Error> {
         let split_key_path: Vec<&str> = string_after_dbc.split(':').collect();
-        for i in (0..split_key_path.len()).rev() {
+        for i in 0..split_key_path.len() {
             let current_key_path =
                 format!("{}:{}", string_before_dbc, split_key_path[0..i].join(":"));
             let payload = self.read_entry(current_key_path.as_str()).await;
