@@ -537,6 +537,29 @@ impl CoLink {
         user_id: &str,
         upgrade: bool,
     ) -> Result<String, Error> {
+        self.start_protocol_operator_full_config(
+            protocol_name,
+            user_id,
+            upgrade,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn start_protocol_operator_full_config(
+        &self,
+        protocol_name: &str,
+        user_id: &str,
+        upgrade: bool,
+        source_type: StartProtocolOperatorSourceType,
+        deploy_mode: &str,
+        source: &str,
+        vt_public_addr: &str,
+    ) -> Result<String, Error> {
         let mut client = self._grpc_connect(&self.core_addr).await?;
         let request = generate_request(
             &self.jwt,
@@ -544,6 +567,10 @@ impl CoLink {
                 protocol_name: protocol_name.to_string(),
                 user_id: user_id.to_string(),
                 upgrade,
+                source_type: source_type as i32,
+                deploy_mode: deploy_mode.to_string(),
+                source: source.to_string(),
+                vt_public_addr: vt_public_addr.to_string(),
             },
         );
         let response = client.start_protocol_operator(request).await?;
