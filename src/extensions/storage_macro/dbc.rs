@@ -11,21 +11,28 @@ impl crate::application::CoLink {
         string_after_dbc: &str,
     ) -> Result<String, Error> {
         let split_key_path: Vec<&str> = string_after_dbc.split(':').collect();
+        println!("split_key_path: {:?}", split_key_path);
         for i in 0..split_key_path.len() {
-            let current_key_path =
-                format!("{}:{}", string_before_dbc, split_key_path[0..i].join(":"));
+            let current_key_path = format!(
+                "{}:{}",
+                string_before_dbc,
+                split_key_path[0..i + 1].join(":")
+            );
+            println!("current_key_path: {}", current_key_path);
             let payload = self.read_entry(current_key_path.as_str()).await;
             if payload.is_ok() {
                 let query_string_raw = String::from_utf8(payload.unwrap())?;
                 let count = query_string_raw.matches('?').count();
-                if count != split_key_path.len() - i {
+                if count != split_key_path.len() - (i + 1) {
                     return Err("Number of parameters does not match specified query string")?;
                 }
                 let mut query_string = query_string_raw;
                 for j in 0..count {
-                    query_string = query_string.replacen('?', split_key_path[i + j], 1);
+                    query_string = query_string.replacen('?', split_key_path[i + j + 1], 1);
                 }
                 return Ok(query_string);
+            } else {
+                continue;
             }
         }
         Err("no query string found.")?
@@ -44,6 +51,7 @@ impl crate::application::CoLink {
             ._search_and_generate_query_string(string_before_dbc, string_after_dbc)
             .await?;
         let mut database = rdbc2::dbc::Database::new(url_string.as_str())?;
+        println!("query_string: {}", query_string);
         let result = database.execute_query_and_serialize_raw(query_string.as_str())?;
         Ok(result)
     }
