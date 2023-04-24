@@ -30,11 +30,15 @@ jobs:
         run: |
           brew install docker
           colima start
-      - name: Start container (MySQL) # for storage macro dbc
+      - name: Start container (MySQL)
         run: |
-          docker run --name mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=test_db -p 3306:3306 -d mysql:8.0
-          MYSQL_HOST=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mysql)
-          echo "MYSQL_DATABASE_URL=mysql://root:password@${MYSQL_HOST}:3306/test_db" >> $GITHUB_ENV
+          docker run --name mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -e MYSQL_DATABASE=test_db -p 3306:3306 -d mysql:8.0
+          if [[ "${{ matrix.ci_image }}" == "macos-latest" ]]; then
+            MYSQL_HOST="host.docker.internal"
+          else
+            MYSQL_HOST=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mysql)
+          fi
+          echo "MYSQL_DATABASE_URL=mysql://root:my-secret-pw@${MYSQL_HOST}:3306/test_db" >> $GITHUB_ENV
       - name: Start container (mq)
         if: ${{ matrix.mq != 'standalone' }}
         run: docker run -d -p 5672:5672 -p 15672:15672 -p 16379:6379 ${{ matrix.docker_image }}
