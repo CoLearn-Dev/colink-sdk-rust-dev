@@ -1,5 +1,7 @@
 use async_recursion::async_recursion;
 use rdbc2;
+use tracing::debug;
+use tracing::log::log;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -11,14 +13,12 @@ impl crate::application::CoLink {
         string_after_dbc: &str,
     ) -> Result<String, Error> {
         let split_key_path: Vec<&str> = string_after_dbc.split(':').collect();
-        println!("split_key_path: {:?}", split_key_path);
         for i in 0..split_key_path.len() {
             let current_key_path = format!(
                 "{}:{}",
                 string_before_dbc,
                 split_key_path[0..i + 1].join(":")
             );
-            println!("current_key_path: {}", current_key_path);
             let payload = self.read_entry(current_key_path.as_str()).await;
             if payload.is_ok() {
                 let query_string_raw = String::from_utf8(payload.unwrap())?;
