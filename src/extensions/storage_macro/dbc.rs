@@ -1,7 +1,5 @@
 use async_recursion::async_recursion;
 use rdbc2;
-use tracing::debug;
-use tracing::log::log;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
