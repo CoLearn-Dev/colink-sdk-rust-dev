@@ -49,8 +49,8 @@ impl crate::application::CoLink {
             ._search_and_generate_query_string(string_before_dbc, string_after_dbc)
             .await?;
         let mut database = rdbc2::dbc::Database::new(url_string.as_str())?;
-        println!("query_string: {}", query_string);
-        let result = database.execute_query_and_serialize_raw(query_string.as_str())?;
-        Ok(result)
+        let result = database.execute_query(query_string.as_str())?;
+        let seraliased_result = serde_json::to_vec(&result)?;
+        Ok(seraliased_result)
     }
 }
