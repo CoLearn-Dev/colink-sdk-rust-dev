@@ -60,17 +60,40 @@ async fn test_storage_macro_dbc_mysql(
     let query_result = cl
         .read_entry("storage_macro_test:db:$dbc:query_users:'Alice':'20'")
         .await?;
-    cl.read_entry("storage_macro_test:db:$dbc:cleanup").await?;
 
     let stringified = String::from_utf8(query_result.clone())?;
     println!("{}", stringified);
     assert_eq!(
         stringified,
-        r#"{"rows":[{"values":[{"Bytes":[65,108,105,99,101]},{"Int":20}],"columns":[{"name":"name","column_type":"VARCHAR"},{"name":"age","column_type":"INT"}]}],"affected_rows":0}"#
+        r#"{"rows":[{"values":[{"Bytes":"QWxpY2U"},{"Int":20}],"columns":[{"name":"name","column_type":"VARCHAR"},{"name":"age","column_type":"INT"}]}],"affected_row_count":0}"#
     );
 
     let deserialized: rdbc2::dbc::QueryResult = serde_json::from_slice(&query_result)?;
     assert_eq!(deserialized.rows.len(), 1);
+
+    // Test query string parsing order
+    cl.create_entry(
+        "storage_macro_test:db:query_users2",
+        b"SELECT * FROM users WHERE name = ? AND age = ?" as &[u8],
+    )
+    .await?;
+
+    cl.create_entry(
+        "storage_macro_test:db:query_users2:additional",
+        b"SELECT * FROM users WHERE name = ?" as &[u8],
+    )
+    .await?;
+
+    let result = cl
+        .read_entry("storage_macro_test:db:$dbc:query_users2:additional:'Alice'")
+        .await?;
+
+    assert_eq!(
+        String::from_utf8(result)?,
+        r#"{"rows":[{"values":[{"Bytes":"QWxpY2U"},{"Int":20}],"columns":[{"name":"name","column_type":"VARCHAR"},{"name":"age","column_type":"INT"}]}],"affected_row_count":0}"#
+    );
+
+    cl.read_entry("storage_macro_test:db:$dbc:cleanup").await?;
 
     Ok(())
 }

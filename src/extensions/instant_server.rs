@@ -81,7 +81,7 @@ impl InstantServer {
             .join(instant_server_id.clone());
         std::fs::create_dir_all(&working_dir).unwrap();
         let mut user_init_config_file =
-            std::fs::File::create(&Path::new(&working_dir).join("user_init_config.toml")).unwrap();
+            std::fs::File::create(Path::new(&working_dir).join("user_init_config.toml")).unwrap();
         user_init_config_file
             .write_all(user_init_config.as_bytes())
             .unwrap();
