@@ -1,8 +1,10 @@
+use crate::StorageEntry;
+
 mod append;
 mod chunk;
+mod dbc;
 mod fs;
 mod redis;
-use crate::StorageEntry;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -64,6 +66,7 @@ impl crate::application::CoLink {
         match macro_type.as_str() {
             "chunk" => self._read_entry_chunk(&string_before).await,
             "redis" => self._read_entry_redis(&string_before, &string_after).await,
+            "dbc" => self._read_entry_dbc(&string_before, &string_after).await,
             "fs" => self._read_entry_fs(&string_before, &string_after).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",
@@ -136,7 +139,7 @@ impl crate::application::CoLink {
                     "invalid storage macro, found {} in prefix {}",
                     macro_type, key_name_prefix
                 )
-                .into())
+                .into());
             }
         };
         let mut res: Vec<StorageEntry> = Vec::new();
