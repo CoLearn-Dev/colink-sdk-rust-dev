@@ -12,6 +12,12 @@ Add this to your Cargo.toml:
 colink = "0.3.7"
 ```
 
+Enable more features in your Cargo.toml
+```
+# if you use storage macro dbc
+colink = { version = "0.3.7", features = ["storage_macro_dbc"] }
+```
+
 ## Getting Started
 You can use this SDK to run protocols, update storage, developing protocol operators. Here is a tutorial for you about how to start a greetings task between two users.
 - Set up CoLink server.
