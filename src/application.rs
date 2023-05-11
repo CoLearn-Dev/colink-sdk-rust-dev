@@ -119,6 +119,13 @@ impl CoLink {
         Ok(self.core_addr.clone())
     }
 
+    pub fn get_jwt(&self) -> Result<String, String> {
+        if self.jwt.is_empty() {
+            return Err("jwt not found".to_string());
+        }
+        Ok(self.jwt.clone())
+    }
+
     pub fn update_jwt(&mut self, new_jwt: &str) -> Result<(), String> {
         self.jwt = new_jwt.to_string();
         Ok(())
