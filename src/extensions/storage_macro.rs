@@ -70,7 +70,7 @@ impl crate::application::CoLink {
             "dbc" => self._read_entry_dbc(&string_before, &string_after).await,
             #[cfg(not(feature = "storage_macro_dbc"))]
             "dbc" => Err(format!(
-                "Storage Macro DBC feature not enabled, but found $ symbol in key name: {}",
+                "Storage Macro DBC feature not enabled, but found $dbc in key name: {}",
                 key_name
             )
             .into()),
