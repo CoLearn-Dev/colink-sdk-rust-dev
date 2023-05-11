@@ -1,10 +1,10 @@
-use crate::StorageEntry;
-
 mod append;
 mod chunk;
+#[cfg(feature = "storage_macro_dbc")]
 mod dbc;
 mod fs;
 mod redis;
+use crate::StorageEntry;
 
 type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
@@ -66,7 +66,14 @@ impl crate::application::CoLink {
         match macro_type.as_str() {
             "chunk" => self._read_entry_chunk(&string_before).await,
             "redis" => self._read_entry_redis(&string_before, &string_after).await,
+            #[cfg(feature = "storage_macro_dbc")]
             "dbc" => self._read_entry_dbc(&string_before, &string_after).await,
+            #[cfg(not(feature = "storage_macro_dbc"))]
+            "dbc" => Err(format!(
+                "Storage Macro DBC feature not enabled, but found $dbc in key name: {}",
+                key_name
+            )
+            .into()),
             "fs" => self._read_entry_fs(&string_before, &string_after).await,
             _ => Err(format!(
                 "invalid storage macro, found {} in key name {}",

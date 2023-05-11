@@ -1,6 +1,6 @@
 [package]
 name = "colink"
-version = "0.3.8"
+version = "0.3.9"
 edition = "2021"
 description = "CoLink Rust SDK"
 license = "MIT"
@@ -50,4 +50,9 @@ variable_transfer = ["extensions", "remote_storage", "hyper", "jsonwebtoken", "r
 registry = []
 policy_module = []
 instant_server = ["reqwest"]
-storage_macro = ["async-recursion", "rdbc2"]
+storage_macro = ["async-recursion"]
+storage_macro_dbc = ["rdbc2"]
+
+[[test]]
+name = "test_storage_macro_dbc"
+required-features = ["storage_macro_dbc"]
