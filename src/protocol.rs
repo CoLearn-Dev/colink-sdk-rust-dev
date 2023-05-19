@@ -170,8 +170,7 @@ impl CoLinkProtocol {
 pub fn _protocol_start(
     cl: CoLink,
     user_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>>,
-    keep_alive_when_disconnect: bool,
-    vt_public_addr: Option<String>,
+    args: CoLinkProtocolCommandLineArgs,
 ) -> Result<(), Error> {
     let mut operator_funcs: HashMap<String, Box<dyn ProtocolEntry + Send + Sync>> = HashMap::new();
     let mut protocols = HashSet::new();
@@ -233,7 +232,7 @@ pub fn _protocol_start(
     let mut threads = vec![];
     for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
-        let vt_public_addr = vt_public_addr.clone();
+        let vt_public_addr = args.vt_public_addr.clone();
         threads.push(thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -250,7 +249,7 @@ pub fn _protocol_start(
                 });
         }));
     }
-    if keep_alive_when_disconnect {
+    if args.keep_alive_when_disconnect {
         for thread in threads {
             thread.join().unwrap();
         }
@@ -282,9 +281,9 @@ pub fn _protocol_start(
     Ok(())
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Default, Parser)]
 #[command(name = "CoLink-SDK", about = "CoLink-SDK")]
-pub struct CommandLineArgs {
+pub struct CoLinkProtocolCommandLineArgs {
     /// Address of CoLink server
     #[arg(short, long, env = "COLINK_CORE_ADDR")]
     pub addr: String,
@@ -292,6 +291,10 @@ pub struct CommandLineArgs {
     /// User JWT
     #[arg(short, long, env = "COLINK_JWT")]
     pub jwt: String,
+
+    /// Path to CA certificate.
+    #[arg(long, env = "COLINK_INSTANCE_ID")]
+    pub instance_id: Option<String>,
 
     /// Path to CA certificate.
     #[arg(long, env = "COLINK_CA_CERT")]
@@ -309,37 +312,34 @@ pub struct CommandLineArgs {
     #[arg(long, env = "COLINK_KEEP_ALIVE_WHEN_DISCONNECT")]
     pub keep_alive_when_disconnect: bool,
 
+    /// Enable heartbeat.
+    #[arg(long, env = "COLINK_ENABLE_HEARTBEAT")]
+    pub enable_heartbeat: bool,
+
     /// Public address for the variable transfer inbox.
     #[arg(long, env = "COLINK_VT_PUBLIC_ADDR")]
     pub vt_public_addr: Option<String>,
 }
 
-pub fn _colink_parse_args() -> (CoLink, bool, Option<String>) {
+pub fn _colink_parse_args() -> (CoLink, CoLinkProtocolCommandLineArgs) {
     tracing_subscriber::fmt::init();
-    let CommandLineArgs {
-        addr,
-        jwt,
-        ca,
-        cert,
-        key,
-        keep_alive_when_disconnect,
-        vt_public_addr,
-    } = CommandLineArgs::parse();
-    let mut cl = CoLink::new(&addr, &jwt);
-    if let Some(ca) = ca {
+    let args = CoLinkProtocolCommandLineArgs::parse();
+    let args_clone = args.clone();
+    let mut cl = CoLink::new(&args.addr, &args.jwt);
+    if let Some(ca) = args.ca {
         cl = cl.ca_certificate(&ca);
     }
-    if let (Some(cert), Some(key)) = (cert, key) {
+    if let (Some(cert), Some(key)) = (args.cert, args.key) {
         cl = cl.identity(&cert, &key);
     }
-    (cl, keep_alive_when_disconnect, vt_public_addr)
+    (cl, args_clone)
 }
 
 #[macro_export]
 macro_rules! protocol_start {
     ( $( $x:expr ),* ) => {
         fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            let (cl, keep_alive_when_disconnect, vt_public_addr) = colink::_colink_parse_args();
+            let (cl, args) = colink::_colink_parse_args();
 
             let mut user_funcs: std::collections::HashMap<
                 String,
@@ -349,7 +349,7 @@ macro_rules! protocol_start {
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
 
-            colink::_protocol_start(cl, user_funcs, keep_alive_when_disconnect, vt_public_addr)?;
+            colink::_protocol_start(cl, user_funcs, args)?;
 
             Ok(())
         }
@@ -368,8 +368,12 @@ macro_rules! protocol_attach {
             $(
                 user_funcs.insert($x.0.to_string(), Box::new($x.1));
             )*
+            let args = colink::CoLinkProtocolCommandLineArgs {
+                vt_public_addr: Some("127.0.0.1".to_string()),
+                ..Default::default()
+            };
             std::thread::spawn(|| {
-                colink::_protocol_start(cl, user_funcs, false, Some("127.0.0.1".to_string()))?;
+                colink::_protocol_start(cl, user_funcs, args)?;
                 Ok::<(), Box<dyn std::error::Error + Send + Sync + 'static>>(())
             });
         }
