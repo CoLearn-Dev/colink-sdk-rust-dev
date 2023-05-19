@@ -249,6 +249,35 @@ pub fn _protocol_start(
                 });
         }));
     }
+    if args.enable_heartbeat {
+        let cl = cl.clone();
+        if let Some(instance_id) = args.instance_id {
+            thread::spawn(|| {
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(async move {
+                        loop {
+                            let timestamp = chrono::Utc::now().timestamp_nanos();
+                            let _ = cl
+                                .update_entry(
+                                    &format!(
+                                        "protocol_operator_instances:{}:heartbeat",
+                                        instance_id
+                                    ),
+                                    &timestamp.to_le_bytes(),
+                                )
+                                .await;
+                            let st = rand::thread_rng().gen_range(32..64);
+                            tokio::time::sleep(tokio::time::Duration::from_secs(st)).await;
+                        }
+                    });
+            });
+        } else {
+            println!("Warning: cannot find instance_id while heartbeat is enabled, please specify instance_id to enable this functionality.")
+        }
+    }
     if args.keep_alive_when_disconnect {
         for thread in threads {
             thread.join().unwrap();
