@@ -263,7 +263,7 @@ pub fn _protocol_start(
                             let _ = cl
                                 .update_entry(
                                     &format!(
-                                        "protocol_operator_instances:{}:heartbeat",
+                                        "_internal:protocol_operator_instances:{}:heartbeat",
                                         instance_id
                                     ),
                                     &timestamp.to_le_bytes(),
