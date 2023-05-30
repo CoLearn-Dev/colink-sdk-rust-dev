@@ -25,7 +25,7 @@ pub struct CoLinkProtocol {
     protocol_and_role: String,
     cl: CoLink,
     user_func: Box<dyn ProtocolEntry>,
-    vt_public_addr: Option<String>,
+    args: CoLinkProtocolCommandLineArgs,
 }
 
 impl CoLinkProtocol {
@@ -33,13 +33,13 @@ impl CoLinkProtocol {
         protocol_and_role: &str,
         cl: CoLink,
         user_func: Box<dyn ProtocolEntry>,
-        vt_public_addr: Option<String>,
+        args: CoLinkProtocolCommandLineArgs,
     ) -> Self {
         Self {
             protocol_and_role: protocol_and_role.to_string(),
             cl,
             user_func,
-            vt_public_addr,
+            args,
         }
     }
 
@@ -78,11 +78,20 @@ impl CoLinkProtocol {
             {
                 cl.vt_p2p_ctx =
                     Arc::new(crate::extensions::variable_transfer::p2p_inbox::VtP2pCtx {
-                        public_addr: self.vt_public_addr.clone(),
+                        public_addr: self.args.vt_public_addr.clone(),
                         ..Default::default()
                     });
             }
             let cl_clone = cl.clone();
+            let instance_id = match &self.args.instance_id {
+                Some(instance_id) => instance_id,
+                None => "anonymous",
+            };
+            cl.update_entry(
+                &format!("_internal:consumptions:{}", task.task_id),
+                instance_id.as_bytes(),
+            )
+            .await?;
             match self
                 .user_func
                 .start(cl, task.protocol_param, task.participants)
@@ -232,14 +241,14 @@ pub fn _protocol_start(
     let mut threads = vec![];
     for (protocol_and_role, user_func) in operator_funcs {
         let cl = cl.clone();
-        let vt_public_addr = args.vt_public_addr.clone();
+        let args = args.clone();
         threads.push(thread::spawn(|| {
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    match CoLinkProtocol::new(&protocol_and_role, cl, user_func, vt_public_addr)
+                    match CoLinkProtocol::new(&protocol_and_role, cl, user_func, args)
                         .start()
                         .await
                     {
@@ -275,7 +284,7 @@ pub fn _protocol_start(
                     });
             });
         } else {
-            println!("Warning: cannot find instance_id while heartbeat is enabled, please specify instance_id to enable this functionality.")
+            return Err("Cannot find instance_id while heartbeat is enabled, please specify instance_id to enable this functionality.".into());
         }
     }
     if args.keep_alive_when_disconnect {
