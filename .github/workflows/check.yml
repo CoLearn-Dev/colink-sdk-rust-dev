@@ -50,7 +50,7 @@ jobs:
         #   toolchain: stable
         #   components: rustfmt, clippy
         run: |
-          rustup toolchain install stable --no-self-update --component rustfmt, clippy
+          rustup toolchain install stable --no-self-update --component rustfmt --component clippy
           rustup default stable
       - name: Install protobuf
         if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
