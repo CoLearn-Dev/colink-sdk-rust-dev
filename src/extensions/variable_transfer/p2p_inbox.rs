@@ -122,7 +122,7 @@ impl VTInboxServer {
         let graceful = server.with_graceful_shutdown(async move {
             rx.recv().await;
         });
-        tokio::spawn(async { graceful.await });
+        tokio::spawn(graceful);
         Self {
             port,
             jwt_secret,
