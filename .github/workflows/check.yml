@@ -45,10 +45,15 @@ jobs:
         with:
           submodules: recursive
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
+        run: |
+          rustup toolchain install stable --no-self-update --component rustfmt --component clippy
+          rustup default stable
+      - name: Install protobuf
+        if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}
+        run: sudo apt update && sudo apt install protobuf-compiler -y
+      - name: Install protobuf(macos)
+        if: ${{ startsWith(matrix.ci_image, 'macos') }}
+        run: brew install protobuf
       - name: Check
         if: ${{ startsWith(matrix.ci_image, 'ubuntu') }}  # skip check in macos because it is slow
         run: cargo check --release

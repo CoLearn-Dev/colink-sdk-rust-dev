@@ -9,13 +9,13 @@ CoLink SDK helps both application and protocol developers access the functionali
 Add this to your Cargo.toml:
 ```toml
 [dependencies]
-colink = "0.3.9"
+colink = "0.3.10"
 ```
 
 Enable more features in your Cargo.toml
 ```
 # if you use storage macro dbc
-colink = { version = "0.3.9", features = ["storage_macro_dbc"] }
+colink = { version = "0.3.10", features = ["storage_macro_dbc"] }
 ```
 
 ## Getting Started
