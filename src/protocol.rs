@@ -88,7 +88,7 @@ impl CoLinkProtocol {
                 None => "anonymous",
             };
             cl.update_entry(
-                &format!("_internal:consumptions:{}", task.task_id),
+                &format!("_internal:task_po_mapping:{}", task.task_id),
                 instance_id.as_bytes(),
             )
             .await?;
